@@ -11,11 +11,8 @@ int etherSS = 53;
 /** W5100 Ethernet Interface */
 EtherSia_ENC28J60 ether(etherSS);
 
-/** Define HTTP server */
-HTTPServer http(ether);
-
-/** Define UDP socket */
-UDPSocket udp(ether);
+/** Define UDP socket with ether and port */
+UDPSocket udp(ether, 6678);
 const char * serverIP = "fd54:d174:8676:1:653f:56d7:bd7d:c238";
 
 int ColorPaletteHigh = 60;
@@ -25,7 +22,6 @@ unsigned int colors[4] = {RED, BLUE, YELLOW, GRAY1};
 // For better pressure precision, we need to know the resistance
 // between X+ and X- Use any multimeter to read it
 // The 2.8" TFT Touch shield has 300 ohms across the X plate
-
 TouchScreen ts = TouchScreen(XP, YP, XM, YM); //init TouchScreen port pins
 
 static void setPinDefinitions() {
@@ -46,14 +42,14 @@ static void initTFTAndDrawButtons() {
   {
     Tft.fillRectangle(i * 60, 0, 60, ColorPaletteHigh, colors[i]);
   }
-  
-  Tft.drawString("KIES COMPONENT",40,80,2,WHITE);
+
+  Tft.drawString("KIES COMPONENT", 40, 80, 2, WHITE);
 }
 
 static void initEthernetAdapter() {
-    // Ethernet adapter
+  // Ethernet adapter
   MACAddress macAddress("9e:b3:19:c7:1b:10");
-  Serial.println("[EtherSia MiniHTTPServer]");
+  Serial.println("[BSF-WeightStation]");
   macAddress.println();
 
   //  // Start Ethernet
@@ -61,11 +57,11 @@ static void initEthernetAdapter() {
     Serial.println("Failed to configure Ethernet");
   }
 
-  if (udp.setRemoteAddress(serverIP, 6678)) {
-    Serial.print("Remote address: ");
-    udp.remoteAddress().println();
-  }
-  
+//  if (udp.setRemoteAddress(serverIP, 6678)) {
+//    Serial.print("Remote address: ");
+//    udp.remoteAddress().println();
+//  }
+
   Serial.print("Our link-local address is: ");
   ether.linkLocalAddress().println();
   Serial.print("Our global address is: ");
@@ -83,6 +79,22 @@ void setup()
 
 void loop()
 {
+  ether.receivePacket();
+
+  if (udp.havePacket()) {
+    Serial.print("Received UDP from: ");
+    udp.packetSource().println();
+
+    Serial.print("Packet length: ");
+    Serial.println(udp.payloadLength(), DEC);
+
+    if (udp.payloadEquals("hoi")) {
+      Serial.println("** received hoi **");
+      udp.sendReply("ok");
+      Tft.drawString("1000 g", 40, 170, 4, WHITE);
+    }
+  }
+  
   // a point object holds x y and z coordinates.
   Point p = ts.getPoint();
 
@@ -98,23 +110,22 @@ void loop()
     // Detect component select change
     if (p.y < ColorPaletteHigh + 2)
     {
-      Tft.fillRectangle(0, 115, 240, 30, BLACK); 
-      if((p.x / 60) == 0) {
-        Tft.drawString("COMPONENT 1",20,120,3,RED);
+      Tft.fillRectangle(0, 115, 240, 30, BLACK);
+      if ((p.x / 60) == 0) {
+        Tft.drawString("COMPONENT 1", 20, 120, 3, RED);
       }
-      else if((p.x / 60) == 1) {
-        Tft.drawString("COMPONENT 2",20,120,3,BLUE);
+      else if ((p.x / 60) == 1) {
+        Tft.drawString("COMPONENT 2", 20, 120, 3, BLUE);
       }
-      else if((p.x / 60) == 2) {
-        Tft.drawString("COMPONENT 3",20,120,3,YELLOW);
+      else if ((p.x / 60) == 2) {
+        Tft.drawString("COMPONENT 3", 20, 120, 3, YELLOW);
       }
-      else if((p.x / 60) == 3) {
-        Tft.drawString("COMPONENT 4",20,120,3,GRAY1);
+      else if ((p.x / 60) == 3) {
+        Tft.drawString("COMPONENT 4", 20, 120, 3, GRAY1);
       }
     }
   }
 
-  ether.receivePacket();
 }
 /*********************************************************************************************************
   END FILE
