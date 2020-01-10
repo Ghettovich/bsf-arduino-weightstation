@@ -14,6 +14,10 @@ EtherSia_ENC28J60 ether(etherSS);
 /** Define HTTP server */
 HTTPServer http(ether);
 
+/** Define UDP socket */
+UDPSocket udp(ether);
+const char * serverIP = "fd54:d174:8676:1:653f:56d7:bd7d:c238";
+
 int ColorPaletteHigh = 60;
 int color = WHITE;  //Paint brush color
 unsigned int colors[4] = {RED, BLUE, YELLOW, GRAY1};
@@ -57,6 +61,11 @@ static void initEthernetAdapter() {
     Serial.println("Failed to configure Ethernet");
   }
 
+  if (udp.setRemoteAddress(serverIP, 6678)) {
+    Serial.print("Remote address: ");
+    udp.remoteAddress().println();
+  }
+  
   Serial.print("Our link-local address is: ");
   ether.linkLocalAddress().println();
   Serial.print("Our global address is: ");
@@ -106,26 +115,6 @@ void loop()
   }
 
   ether.receivePacket();
-
-  if (http.isGet(F("/"))) {
-    http.printHeaders(http.typeHtml);
-    http.println(F("<h1>Hello World</h1>"));
-    http.sendReply();
-
-  } else if (http.isGet(F("/text"))) {
-    http.printHeaders(http.typePlain);
-    http.println(F("This is some plain text, is this real life?"));
-    http.sendReply();
-
-  } else if (http.havePacket()) {
-    // Some other HTTP request, return 404
-    http.notFound();
-
-  } else {
-    // Some other packet, reply with rejection
-    ether.rejectPacket();
-
-  }
 }
 /*********************************************************************************************************
   END FILE
