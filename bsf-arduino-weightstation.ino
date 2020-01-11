@@ -3,10 +3,13 @@
 #include <SeeedTouchScreen.h>
 #include <TFTv2.h>
 #include <SPI.h>
-
 #include <EtherSia.h>
+#include <ArduinoJson.h>
+
+#define PAYLOAD_SIZE = 600;
 
 int etherSS = 53;
+char * payload;
 
 /** W5100 Ethernet Interface */
 EtherSia_ENC28J60 ether(etherSS);
@@ -14,6 +17,15 @@ EtherSia_ENC28J60 ether(etherSS);
 /** Define UDP socket with ether and port */
 UDPSocket udp(ether, 6678);
 const char * serverIP = "fd54:d174:8676:1:653f:56d7:bd7d:c238";
+
+struct Recipe {
+  int recipeId = 0;
+  int data[2] = {0, 0};
+};
+
+int currentState = 0, prevState = 0;
+Recipe recipe = Recipe();
+int currentWeight = 0, prevWeight = 0;
 
 int ColorPaletteHigh = 60;
 int color = WHITE;  //Paint brush color
@@ -37,13 +49,51 @@ static void initTFTAndDrawButtons() {
   // TFT
   Tft.TFTinit();  //init TFT library
   Serial.begin(115200);
-  //Draw the pallet
-  for (int i = 0; i < 4; i++)
-  {
-    Tft.fillRectangle(i * 60, 0, 60, ColorPaletteHigh, colors[i]);
-  }
+  Tft.fillRectangle(0, 60, 240, 320, BLACK);
+  Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
+  Tft.drawString("Start", 5, 20, 2, WHITE);
+  Tft.fillRectangle(90, 0, 50, ColorPaletteHigh, BLUE);
+  Tft.fillRectangle(140, 0, 50, ColorPaletteHigh, YELLOW);
+  Tft.fillRectangle(190, 0, 50, ColorPaletteHigh, GRAY1);
+}
 
+static void drawRecipeInfo() {
+  Tft.fillRectangle(0, 60, 240, 320, BLACK);
+  Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
+  Tft.drawString("Start", 5, 20, 2, WHITE);
+  Tft.drawString("Recept info", 30, 80, 3, WHITE);
+  Tft.drawString("Component 1:", 10, 130, 2, WHITE);
+  Tft.drawNumber(recipe.data[0], 160, 130, 2, RED);
+  Tft.drawString("Component 2:", 10, 180, 2, WHITE);
+  Tft.drawNumber(recipe.data[1], 160, 180, 2, RED);
+  if (recipe.recipeId == 0) {
+    Tft.drawString("Geen recept bekend", 10, 230, 2, RED);
+  }
+  else {
+    Tft.drawString("Druk op start.", 10, 230, 2, GREEN);
+  }
+}
+
+static void drawSelectComponent() {
+  Tft.fillRectangle(0, 60, 240, 320, BLACK);
+  Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
+  Tft.drawString("Recept", 5, 20, 2, WHITE);
   Tft.drawString("KIES COMPONENT", 40, 80, 2, WHITE);
+  Tft.drawChar('+', 25, 280, 5, WHITE);
+  Tft.drawRectangle(25, 280, 35, 35, WHITE);
+  Tft.drawChar('-', 75, 280, 5, WHITE);
+  Tft.drawRectangle(75, 280, 35, 35, WHITE);
+}
+
+static void updateDisplay() {
+  switch (currentState) {
+    case 0:
+      drawRecipeInfo();
+      break;
+    case 1:
+      drawSelectComponent();
+      break;
+  }
 }
 
 static void initEthernetAdapter() {
@@ -57,15 +107,44 @@ static void initEthernetAdapter() {
     Serial.println("Failed to configure Ethernet");
   }
 
-//  if (udp.setRemoteAddress(serverIP, 6678)) {
-//    Serial.print("Remote address: ");
-//    udp.remoteAddress().println();
-//  }
-
   Serial.print("Our link-local address is: ");
   ether.linkLocalAddress().println();
   Serial.print("Our global address is: ");
   ether.globalAddress().println();
+}
+
+static void copyPayload() {
+  Serial.println("copying payload...");
+
+  StaticJsonDocument<200> doc;
+  char json[80];
+  memcpy(json, udp.payload(), udp.payloadLength());
+
+  // Deserialize the JSON document
+  DeserializationError error = deserializeJson(doc, json);
+
+  // Test if parsing succeeds.
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return;
+  }
+  else {
+    udp.sendReply("ok"); // reply to host that recipe is received and parsed succesfully
+  }
+
+  recipe.recipeId = doc["recipeId"];
+  recipe.data[0] = doc["data"][0];
+  recipe.data[1] = doc["data"][1];
+
+  // if true component info is displayed, update state and let main loop update the ui
+  if (currentState == 1) {
+    currentState = 0;
+  }
+  // recipe info is being displayed, update values retrieved from payload
+  else {
+    updateDisplay();
+  }
 }
 
 void setup()
@@ -73,6 +152,7 @@ void setup()
   setPinDefinitions();
   initTFTAndDrawButtons();
   initEthernetAdapter();
+  updateDisplay();
 
   Serial.println("Ready.");
 }
@@ -88,13 +168,9 @@ void loop()
     Serial.print("Packet length: ");
     Serial.println(udp.payloadLength(), DEC);
 
-    if (udp.payloadEquals("hoi")) {
-      Serial.println("** received hoi **");
-      udp.sendReply("ok");
-      Tft.drawString("1000 g", 40, 170, 4, WHITE);
-    }
+    copyPayload();
   }
-  
+
   // a point object holds x y and z coordinates.
   Point p = ts.getPoint();
 
@@ -109,23 +185,61 @@ void loop()
   if (p.z > __PRESURE) {
     // Detect component select change
     if (p.y < ColorPaletteHigh + 2)
-    {
-      Tft.fillRectangle(0, 115, 240, 30, BLACK);
-      if ((p.x / 60) == 0) {
-        Tft.drawString("COMPONENT 1", 20, 120, 3, RED);
+    {      
+      // Start button pressed update UI and request user to select component
+      if (p.x > 0 && p.x < 90) { 
+        if(currentState == 0) {
+           currentState = 1;         
+        }
+        else if(currentState == 1) {
+          currentState = 0;
+        }
       }
-      else if ((p.x / 60) == 1) {
-        Tft.drawString("COMPONENT 2", 20, 120, 3, BLUE);
+      else if (p.x > 90 && p.x < 140) {
+        Tft.fillRectangle(0, 115, 240, 30, BLACK);
+        Tft.drawString("COMPONENT 1", 20, 120, 3, BLUE);
+        Tft.drawString("TARGET =", 20, 160, 2, BLUE);
+        Tft.drawNumber(recipe.data[0], 180, 160, 2, BLUE);
+        Tft.drawString("HUIDIG =", 20, 230, 2, BLUE);
+        // update with actual value
+        Tft.drawNumber(0, 130, 220, 5, BLUE);
       }
-      else if ((p.x / 60) == 2) {
-        Tft.drawString("COMPONENT 3", 20, 120, 3, YELLOW);
+      else if (p.x > 140 && p.x < 190) {
+        Tft.fillRectangle(0, 115, 240, 30, BLACK);
+        Tft.drawString("COMPONENT 2", 20, 120, 3, YELLOW);
       }
-      else if ((p.x / 60) == 3) {
-        Tft.drawString("COMPONENT 4", 20, 120, 3, GRAY1);
+      else if (p.x > 190 && p.x < 240) {
+        Tft.fillRectangle(0, 115, 240, 30, BLACK);
+        Tft.drawString("COMPONENT 3", 20, 120, 3, GRAY1);
       }
     }
+    else if(p.y >= 280) {
+      // touch plus '+' sign
+      if(p.x >= 25 && p.x <= 70) {
+        currentWeight++;
+        Tft.fillRectangle(130, 220, 120, 70, BLACK);
+        Tft.drawNumber(currentWeight, 130, 220, 5, BLUE);
+      }
+      // touch minus '-' sign
+      else if(p.x >= 75 && p.x <= 110) {
+        currentWeight--;
+        Tft.fillRectangle(130, 220, 120, 70, BLACK);
+        Tft.drawNumber(currentWeight, 130, 220, 5, BLUE);
+      }
+    }
+    
   }
 
+  if(currentWeight != prevWeight {
+    currentWeight = prevWeight;
+    // send packet to app
+  }
+
+  if (currentState != prevState) {
+    updateDisplay();
+  }
+
+  prevState = currentState;
 }
 /*********************************************************************************************************
   END FILE
