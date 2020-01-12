@@ -18,7 +18,11 @@ EtherSia_ENC28J60 ether(etherSS);
 UDPSocket udp(ether, 6678);
 const char * serverIP = "fd54:d174:8676:1:653f:56d7:bd7d:c238";
 
+/** JSON info */
+const int capacity = JSON_ARRAY_SIZE(4) + 4 * JSON_OBJECT_SIZE(4);
+
 struct Recipe {
+  int arduinoId = 2;
   int recipeId = 0;
   int data[2] = {0, 0};
 };
@@ -26,6 +30,7 @@ struct Recipe {
 int currentState = 0, prevState = 0;
 Recipe recipe = Recipe();
 int currentWeight = 0, prevWeight = 0;
+
 
 int ColorPaletteHigh = 60;
 int color = WHITE;  //Paint brush color
@@ -118,7 +123,7 @@ static void copyPayload() {
 
   StaticJsonDocument<200> doc;
   char json[80];
-  memcpy(json, udp.payload(), udp.payloadLength());
+  memcpy(json, udp.payload(), udp.payloadLength()); // remove this line?? test!!
 
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, json);
@@ -127,15 +132,16 @@ static void copyPayload() {
   if (error) {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.c_str());
+    udp.sendReply("{\"stateReply\":1}"); // reply to host that an error occured
     return;
   }
   else {
-    udp.sendReply("ok"); // reply to host that recipe is received and parsed succesfully
+    recipe.recipeId = doc["recipeId"];
+    recipe.data[0] = doc["data"][0];
+    recipe.data[1] = doc["data"][1];
+    // parsed json successfuly send reply back
+    udp.sendReply("{\"arduinoId\":2, \"stateReply\":0}"); // reply to host that recipe is received and parsed succesfully
   }
-
-  recipe.recipeId = doc["recipeId"];
-  recipe.data[0] = doc["data"][0];
-  recipe.data[1] = doc["data"][1];
 
   // if true component info is displayed, update state and let main loop update the ui
   if (currentState == 1) {
@@ -185,13 +191,13 @@ void loop()
   if (p.z > __PRESURE) {
     // Detect component select change
     if (p.y < ColorPaletteHigh + 2)
-    {      
+    {
       // Start button pressed update UI and request user to select component
-      if (p.x > 0 && p.x < 90) { 
-        if(currentState == 0) {
-           currentState = 1;         
+      if (p.x > 0 && p.x < 90) {
+        if (currentState == 0) {
+          currentState = 1;
         }
-        else if(currentState == 1) {
+        else if (currentState == 1) {
           currentState = 0;
         }
       }
@@ -213,26 +219,27 @@ void loop()
         Tft.drawString("COMPONENT 3", 20, 120, 3, GRAY1);
       }
     }
-    else if(p.y >= 280) {
+    else if (p.y >= 280) {
       // touch plus '+' sign
-      if(p.x >= 25 && p.x <= 70) {
+      if (p.x >= 25 && p.x <= 70) {
         currentWeight++;
         Tft.fillRectangle(130, 220, 120, 70, BLACK);
         Tft.drawNumber(currentWeight, 130, 220, 5, BLUE);
       }
       // touch minus '-' sign
-      else if(p.x >= 75 && p.x <= 110) {
+      else if (p.x >= 75 && p.x <= 110) {
         currentWeight--;
         Tft.fillRectangle(130, 220, 120, 70, BLACK);
         Tft.drawNumber(currentWeight, 130, 220, 5, BLUE);
       }
     }
-    
+
   }
 
-  if(currentWeight != prevWeight {
+  if (currentWeight != prevWeight) {
     currentWeight = prevWeight;
     // send packet to app
+
   }
 
   if (currentState != prevState) {
