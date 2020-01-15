@@ -1,4 +1,3 @@
-// Paint application - Demonstate both TFT and Touch Screen
 #include <stdint.h>
 #include <SeeedTouchScreen.h>
 #include <TFTv2.h>
@@ -6,14 +5,14 @@
 #include <EtherSia.h>
 #include <ArduinoJson.h>
 
-int etherSS = 53;
+const int etherSS = 53, port = 6678;
 char * payload;
 
 /** W5100 Ethernet Interface */
 EtherSia_ENC28J60 ether(etherSS);
 
 /** Define UDP socket with ether and port */
-UDPSocket udp(ether, 6678);
+UDPSocket udp(ether, port);
 const char * serverIP = "fd54:d174:8676:1:653f:56d7:bd7d:c238";
 
 /** JSON info */
@@ -21,15 +20,17 @@ const int capacity = JSON_ARRAY_SIZE(4) + 4 * JSON_OBJECT_SIZE(4);
 
 struct Recipe {
   int arduinoId = 2;
+  int deviceId = 1;
   int recipeId = 0;
   int data[2] = {0, 0};
 };
+
+enum RecipeComponent {PLASTIFIER = 1, WATER = 2, SAND = 3};
 
 Recipe recipe = Recipe();
 int selectedComponent = 0;
 int currentState = 0, prevState = 0;
 int prevWeight = 0;
-
 
 int ColorPaletteHigh = 60;
 int color = WHITE;  //Paint brush color
@@ -40,6 +41,7 @@ unsigned int colors[4] = {RED, BLUE, YELLOW, GRAY1};
 // The 2.8" TFT Touch shield has 300 ohms across the X plate
 TouchScreen ts = TouchScreen(XP, YP, XM, YM); //init TouchScreen port pins
 
+/** Define Pins, set pins low let library handle SS/CS */
 static void setPinDefinitions() {
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);
@@ -49,6 +51,7 @@ static void setPinDefinitions() {
   digitalWrite(etherSS, HIGH);
 }
 
+/** Initialize TFT and draw start screen */
 static void initTFTAndDrawButtons() {
   // TFT
   Tft.TFTinit();  //init TFT library
@@ -61,6 +64,7 @@ static void initTFTAndDrawButtons() {
   Tft.fillRectangle(190, 0, 50, ColorPaletteHigh, GRAY1);
 }
 
+/** Draw recipe info with targets from received recipe (0 if none) */
 static void drawRecipeInfo() {
   Tft.fillRectangle(0, 60, 240, 320, BLACK);
   Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
@@ -78,6 +82,7 @@ static void drawRecipeInfo() {
   }
 }
 
+/** Draw select component info with temporary plus and minus buttons */
 static void drawSelectComponent() {
   Tft.fillRectangle(0, 60, 240, 320, BLACK);
   Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
@@ -89,6 +94,42 @@ static void drawSelectComponent() {
   Tft.drawRectangle(75, 280, 35, 35, WHITE);
 }
 
+/** Draw selected component with corresponding colors */
+static void drawSelectedComponentInfo(int color) {
+  if (selectedComponent == 1 || selectedComponent == 2 || selectedComponent == 3) {
+    Tft.fillRectangle(0, 115, 235, 165, BLACK);
+    Tft.drawString("COMPONENT", 20, 120, 3, color);
+    Tft.drawNumber(selectedComponent, 180, 120, 3, color);
+    Tft.drawString("TARGET =", 20, 160, 2, color);
+    Tft.drawString("HUIDIG =", 20, 230, 2, color);
+    // update with actual value
+    switch (selectedComponent) {
+      case 1 :
+        Tft.drawNumber(recipe.data[0], 140, 160, 2, color);
+        Tft.drawNumber(recipe.data[0], 130, 220, 4, color);
+        break;
+      case 2 :
+        Tft.drawNumber(recipe.data[1], 140, 160, 2, color);
+        Tft.drawNumber(recipe.data[1], 130, 220, 4, color);
+        break;
+    }
+  }
+}
+
+/** Update displayed weight with selected component */
+static void updateRecipeWeightInfo() {
+  Tft.fillRectangle(130, 220, 120, 70, BLACK);
+  switch (selectedComponent) {
+    case 1 :      
+      Tft.drawNumber(recipe.data[0], 120, 220, 5, BLUE);
+      break;
+    case 2 :
+      Tft.drawNumber(recipe.data[1], 120, 220, 5, YELLOW);
+      break;
+  }
+}
+
+/** Update display based on state, always called in loop when currenState != prevState */
 static void updateDisplay() {
   switch (currentState) {
     case 0:
@@ -100,6 +141,7 @@ static void updateDisplay() {
   }
 }
 
+/** Initialize the ethernet adapter  */
 static void initEthernetAdapter() {
   // Ethernet adapter
   MACAddress macAddress("9e:b3:19:c7:1b:10");
@@ -137,13 +179,13 @@ static void deserializePayload() {
     recipe.recipeId = doc["recipeId"];
     recipe.data[0] = doc["data"][0];
     recipe.data[1] = doc["data"][1];
-    // parsed json successfuly send reply back
-    udp.sendReply("{\"arduinoId\":2, \"stateReply\":0}"); // reply to host that recipe is received and parsed succesfully
+    // parsed json successfuly send reply back, 1 means parsed successfully
+    udp.sendReply("{\"arduinoId\":2, \"stateReply\":1}");
   }
 
   // if true component info is displayed, update state and let main loop update the ui
   if (currentState == 1) {
-    currentState = 0;
+    setState(0);
   }
   // recipe info is being displayed, update values retrieved from payload
   else {
@@ -151,37 +193,28 @@ static void deserializePayload() {
   }
 }
 
-static void drawSelectedComponentInfo(int color) {
-  if (selectedComponent == 1 || selectedComponent == 2 || selectedComponent == 3) {
-    Tft.fillRectangle(0, 115, 235, 165, BLACK);
-    Tft.drawString("COMPONENT", 20, 120, 3, color);
-    Tft.drawNumber(selectedComponent, 180, 120, 3, color);
-    Tft.drawString("TARGET =", 20, 160, 2, color);
-    Tft.drawString("HUIDIG =", 20, 230, 2, color);
-    // update with actual value
-    switch (selectedComponent) {
-      case 1 :
-        Tft.drawNumber(recipe.data[0], 140, 160, 2, color);
-        Tft.drawNumber(recipe.data[0], 130, 220, 4, color);
-        break;
-      case 2 :
-        Tft.drawNumber(recipe.data[1], 140, 160, 2, color);
-        Tft.drawNumber(recipe.data[1], 130, 220, 4, color);
-        break;
-    }
-  }
-}
+static void onChangeWeightPayload() {
+  StaticJsonDocument<250> doc;
+  char payload[ETHERSIA_MAX_PACKET_SIZE];
 
-static void updateRecipeWeightInfo() {
-  Tft.fillRectangle(130, 220, 120, 70, BLACK);
-  switch (selectedComponent) {
-    case 1 :      
-      Tft.drawNumber(recipe.data[0], 120, 220, 5, BLUE);
-      break;
-    case 2 :
-      Tft.drawNumber(recipe.data[1], 120, 220, 5, YELLOW);
-      break;
+  doc["arduinoId"] = recipe.arduinoId;
+  doc["deviceId"] = recipe.deviceId;
+  doc["recipeId"] = recipe.recipeId;
+  doc["componentId"] = selectedComponent;
+  doc["weight"] = recipe.data[0];
+
+  serializeJson(doc, payload);
+
+  if(!udp.remoteAddress()) {
+    udp.setRemoteAddress(serverIP, port);
+    udp.remoteAddress().println();
   }
+  else {
+    udp.remoteAddress().println();
+  }
+
+  udp.println(payload);
+  udp.send();    
 }
 
 static void setState(int state) {
@@ -206,15 +239,15 @@ static void readTouchInput(int x, int y) {
       }
     }
     else if (x > 90 && x < 140 && currentState == 1) {
-      selectedComponent = 1;
+      selectedComponent = RecipeComponent::PLASTIFIER;
       drawSelectedComponentInfo(BLUE);
     }
     else if (x > 140 && x < 190 && currentState == 1) {
-      selectedComponent = 2;
+      selectedComponent = RecipeComponent::WATER;
       drawSelectedComponentInfo(YELLOW);
     }
     else if (x > 190 && x < 240 && currentState == 1) {
-      selectedComponent = 3;
+      selectedComponent = RecipeComponent::SAND;
       drawSelectedComponentInfo(GRAY1);
     }
   }
@@ -283,6 +316,7 @@ void loop()
     prevWeight = recipe.data[0];
     // send packet to app
     Serial.println("weight changed, transmit");
+    onChangeWeightPayload();
   }
 
   if (currentState != prevState) {
@@ -291,6 +325,3 @@ void loop()
 
   prevState = currentState;
 }
-/*********************************************************************************************************
-  END FILE
-*********************************************************************************************************/
