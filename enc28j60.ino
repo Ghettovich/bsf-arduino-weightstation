@@ -31,6 +31,11 @@ void initEthernetAdapter() {
         Serial.println("Failed to configure Ethernet");
     }
 
+    if (udp.setRemoteAddress(serverIP, port)) {
+        Serial.print("Remote address: ");
+        udp.remoteAddress().println();
+    }
+
     Serial.print("Our link-local address is: ");
     ether.linkLocalAddress().println();
     Serial.print("Our global address is: ");
@@ -83,6 +88,9 @@ void deserializePayload() {
         pRecipe->data[1] = doc["data"][1];
 
         updateRecipeComponents(pRecipe->recipeId, pRecipe->data[0], pRecipe->data[1]);
+
+        //udp.println("nice....");
+        udp.sendReply("nice");
     }
 }
 
@@ -115,9 +123,17 @@ void replyWithFullStatePayload() {
     StaticJsonDocument <ETHERSIA_MAX_PACKET_SIZE> doc;
     char payload[ETHERSIA_MAX_PACKET_SIZE];
 
-    doc["arduinoId"] = recipe.arduinoId;
-    doc["iodeviceId"] = recipe.deviceId;
-    doc["recipeId"] = recipe.recipeId;
+    if(pRecipe == nullptr) {
+        Recipe recipe = Recipe();
+        doc["arduinoId"] = recipe.arduinoId;
+        doc["iodeviceId"] = recipe.deviceId;
+        doc["recipeId"] = recipe.recipeId;
+    } else {
+        doc["arduinoId"] = pRecipe->arduinoId;
+        doc["iodeviceId"] = pRecipe->deviceId;
+        doc["recipeId"] = pRecipe->recipeId;
+    }
+
 
     serializeJson(doc, payload);
 
