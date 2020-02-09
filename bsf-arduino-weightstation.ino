@@ -1,3 +1,4 @@
+#include “includes.h”
 #include <stdint.h>
 #include <SeeedTouchScreen.h>
 #include <TFTv2.h>
@@ -6,14 +7,14 @@
 #include <ArduinoJson.h>
 
 const int etherSS = 53, port = 6678;
-char * payload;
+const int plastifierId = 1, waterId = 2, sandId = 3;
 
 /** W5100 Ethernet Interface */
 EtherSia_ENC28J60 ether(etherSS);
 
 /** Define UDP socket with ether and port */
 UDPSocket udp(ether, port);
-const char * serverIP = "fd54:d174:8676:1:653f:56d7:bd7d:c238";
+const char * serverIP = "fe80::3d15:b791:18be:a308";
 
 /** JSON info */
 const int capacity = JSON_ARRAY_SIZE(4) + 4 * JSON_OBJECT_SIZE(4);
@@ -25,7 +26,7 @@ struct Recipe {
   int data[2] = {0, 0};
 };
 
-enum RecipeComponent {PLASTIFIER = 1, WATER = 2, SAND = 3};
+enum RecipeComponent {PLASTIFIER, WATER, SAND};
 
 Recipe recipe = Recipe();
 int selectedComponent = 0;
@@ -54,8 +55,7 @@ static void setPinDefinitions() {
 /** Initialize TFT and draw start screen */
 static void initTFTAndDrawButtons() {
   // TFT
-  Tft.TFTinit();  //init TFT library
-  Serial.begin(115200);
+  Tft.TFTinit();  //init TFT library  
   Tft.fillRectangle(0, 60, 240, 320, BLACK);
   Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
   Tft.drawString("Start", 5, 20, 2, WHITE);
@@ -277,6 +277,7 @@ static void readTouchInput(int x, int y) {
 
 void setup()
 {
+  Serial.begin(115200);
   setPinDefinitions();
   initTFTAndDrawButtons();
   initEthernetAdapter();
