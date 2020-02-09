@@ -1,0 +1,63 @@
+# Response for AAAA ipv6.aelius.com
+
+1234      # Request ID
+8180      # Flags
+0001      # QD: Question Count
+0001      # AN: Answer Count
+0003      # NS: Name Server Count
+0000      # AR: Additional Record Count
+
+# Question Section
+04 "ipv6"
+06 "aelius"
+03 "com"
+00
+
+001c      # Type 28 - IP6 Address
+0001      # Class 1 - Internet
+
+# Answer Section
+c0 0c     # Pointer to name in the question section
+
+001c      # Type 28 - IP6 Address
+0001      # Class 1 - Internet
+00000371  # Time to Live
+0010      # Record Length (16 bytes)
+
+2001:41c8:0051:07cf:0000:0000:0000:0006
+
+# Name Server Record
+c011      # Pointer to Question
+
+0002      # An authoritative name server
+0001      # Class 1 - Internet
+00000370  # Time to Live
+0015      # Record Length (21 bytes)
+
+01 "a"
+02 "ns"
+08 "bytemark"
+02 "co"
+02 "uk"
+00
+
+# Name Server Record
+c011      # Pointer to Question
+0002      # An authoritative name server
+0001      # Class 1 - Internet
+00000370  # Time to Live
+0004      # Record Length (4 bytes)
+
+01 "b"
+c0 4b     # Pointer to "ns.bytemark.co.uk"
+
+
+# Name Server Record
+c011      # Pointer to Question
+0002      # An authoritative name server
+0001      # Class 1 - Internet
+00000370  # Time to Live
+0004      # Record Length (4 bytes)
+
+01 "c"
+c0 4b     # Pointer to "ns.bytemark.co.uk"
