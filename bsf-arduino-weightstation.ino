@@ -1,12 +1,10 @@
-#include <HX711.h>
-
 #include <stdint.h>
 #include "src/Recipe.h"
 
 Recipe * pRecipe = nullptr;
 
 void setup() {
-  Serial.begin(57600);  
+  Serial.begin(115200);  
     
   // set pins manually
   setTFTPinDefinitions();

@@ -1,65 +1,77 @@
 #include "HX711.h"
+#include <util/atomic.h>
 
 HX711 scale;
 
-const int HX711_dout = 18; //mcu > HX711 dout pin, must be external interrupt capable!
-const int HX711_sck = 49; //mcu > HX711 sck pin
+const int HX711_dout = 18;
+const int HX711_sck = 49;
 
 const int interval = 1000;
-unsigned long currentMillis = 0, prevMillis = 0;
+unsigned long delayStart = 0;
+
+bool delayRunning = false;
 
 void hx711SetupUp() {
-  Serial.begin(115200);
-  Serial.println(__FILE__);
-  Serial.print("LIBRARY VERSION: ");
-  Serial.println(HX711_LIB_VERSION);
-  Serial.println();
+  delayStart = millis();
+  delayRunning = true;
 
+  Serial.println("HX711 Demo");
+
+  Serial.println("Initializing the scale");
+
+  // Initialize library with data output pin, clock input pin and gain factor.
+  // Channel selection is made by passing the appropriate gain:
+  // - With a gain factor of 64 or 128, channel A is selected
+  // - With a gain factor of 32, channel B is selected
+  // By omitting the gain factor parameter, the library
+  // default "128" (Channel A) is used here.
   scale.begin(HX711_dout, HX711_sck);
 
-  Serial.print("UNITS: ");
-  Serial.println(scale.get_units(10));
+  Serial.println("Before setting up the scale:");
+  Serial.print("read: \t\t");
+  Serial.println(scale.read());      // print a raw reading from the ADC
 
-  Serial.println("\nEmpty the scale, press a key to continue");
-  while (!Serial.available());
-  while (Serial.available()) Serial.read();
+  Serial.print("read average: \t\t");
+  Serial.println(scale.read_average(20));   // print the average of 20 readings from the ADC
 
-  scale.tare();
-  Serial.print("UNITS: ");
-  Serial.println(scale.get_units(10));
+  Serial.print("get value: \t\t");
+  Serial.println(scale.get_value(5));   // print the average of 5 readings from the ADC minus the tare weight (not set yet)
 
+  Serial.print("get units: \t\t");
+  Serial.println(scale.get_units(5), 1);  // print the average of 5 readings from the ADC minus tare weight (not set) divided
+  // by the SCALE parameter (not set yet)
 
-  Serial.println("\nPut a 1 kg in the scale, press a key to continue");
-  while (!Serial.available());
-  while (Serial.available()) Serial.read();
+  scale.set_scale(2280.f);                      // this value is obtained by calibrating the scale with known weights; see the README for details
+  scale.tare();               // reset the scale to 0
 
-  scale.callibrate_scale(1000, 5);
-  Serial.print("UNITS: ");
-  Serial.println(scale.get_units(10));
+  Serial.println("After setting up the scale:");
 
-  Serial.println("\nScale is callibrated, press a key to continue");
-  while (!Serial.available());
-  while (Serial.available()) Serial.read();
+  Serial.print("read: \t\t");
+  Serial.println(scale.read());                 // print a raw reading from the ADC
 
-  scale.set_unit_price(0.031415);  // we only have one price
+  Serial.print("read average: \t\t");
+  Serial.println(scale.read_average(20));       // print the average of 20 readings from the ADC
 
-  digitalWrite(HX711_sck, HIGH);
+  Serial.print("get value: \t\t");
+  Serial.println(scale.get_value(5));   // print the average of 5 readings from the ADC minus the tare weight, set with tare()
+
+  Serial.print("get units: \t\t");
+  Serial.println(scale.get_units(5), 1);        // print the average of 5 readings from the ADC minus tare weight, divided
+  // by the SCALE parameter set with set_scale
 }
 
 
 void hx711Loop() {
-  currentMillis = millis();
-  
-  if (currentMillis + interval > prevMillis) {
-    digitalWrite(HX711_sck, LOW);
-    digitalWrite(HX711_dout, LOW);
-    Serial.print("UNITS: ");
-    Serial.print(scale.get_units(3));
-    Serial.print("\t\tPRICE: ");
-    Serial.println(scale.get_price(3));
-    digitalWrite(HX711_sck, HIGH);
-    digitalWrite(HX711_dout, HIGH);
 
-    prevMillis = currentMillis;
+  if (delayRunning && (millis() - delayStart) >= 500) {
+
+    scale.power_up();    
+    
+    Serial.print("one reading:\t");
+    Serial.println(scale.get_units(), 1);
+    
+    delayStart = millis();
+    delayRunning = true;
   }
+  
 }

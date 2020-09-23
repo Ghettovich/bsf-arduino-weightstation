@@ -44,26 +44,27 @@ void initEthernetAdapter() {
 }
 
 void receiveEtherPacket() {
-  ether.receivePacket();
+  if (ether.receivePacket()) {
 
-  // HTTP endpoints
-  if (http.isGet(F("/"))) {
-    replyWithFullStatePayload();
-  } else if (http.isGet(F("/test"))) {
-    http.printHeaders(http.typeHtml);
-    http.println(F("<h1>Hello World</h1>"));
-    http.sendReply();
-  }
+    // HTTP endpoints
+    if (http.isGet(F("/"))) {
+      replyWithFullStatePayload();
+    } else if (http.isGet(F("/test"))) {
+      http.printHeaders(http.typeHtml);
+      http.println(F("<h1>Hello World</h1>"));
+      http.sendReply();
+    }
 
-  // UDP
-  if (udp.havePacket()) {
-    Serial.print("Received UDP from: ");
-    udp.packetSource().println();
+    // UDP
+    if (udp.havePacket()) {
+      Serial.print("Received UDP from: ");
+      udp.packetSource().println();
 
-    Serial.print("Packet length: ");
-    Serial.println(udp.payloadLength(), DEC);
+      Serial.print("Packet length: ");
+      Serial.println(udp.payloadLength(), DEC);
 
-    deserializePayload();
+      deserializePayload();
+    }
   }
 }
 
