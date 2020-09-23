@@ -1,27 +1,35 @@
+#include <HX711.h>
+
 #include <stdint.h>
 #include "src/Recipe.h"
 
 Recipe * pRecipe = nullptr;
 
 void setup() {
-    Serial.begin(115200);
-    // set pins manually
-    setTFTPinDefinitions();
-    setEthernetPinDefinitions();
+  Serial.begin(57600);  
+    
+  // set pins manually
+  setTFTPinDefinitions();
+  setEthernetPinDefinitions();
 
-    // initialize hardware
-    initTFTouchScreen();
-    initEthernetAdapter();
+  // initialize load cell 
+  hx711SetupUp();  
 
-    updateDisplay();
+  // initialize hardware
+  initTFTouchScreen();
+  initEthernetAdapter();
 
-    Serial.println("Ready.");
+  updateDisplay();
+  
+  Serial.println("Ready.");
 }
 
 void loop() {
-    // check if ether has a pending packet
-    receiveEtherPacket();
-    // a point object holds x y and z coordinates.
-    processTouch();
+  // check if load has new data
+  hx711Loop();
+  // check if ether has a pending packet
+  receiveEtherPacket();
+  // a point object holds x y and z coordinates.
+  processTouch();
 
 }

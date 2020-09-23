@@ -1,3 +1,4 @@
+.idea/**
 /bsf-arduino-weightstation.arduino.avr.mega.elf
 /bsf-arduino-weightstation.arduino.avr.mega.hex
 /bsf-arduino-weightstation.arduino.avr.mega.with_bootloader.hex
