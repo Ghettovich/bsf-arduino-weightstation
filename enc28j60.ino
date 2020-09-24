@@ -2,6 +2,8 @@
 #include <ArduinoJson.h>
 #include "src/Recipe.h"
 
+const int componentsStructSize = 3;
+
 const int etherSS = 53, port = 6677;
 const char *serverIP = "2a02:a213:9f81:4e80:2aab:51a2:d551:1c33";
 
@@ -86,10 +88,28 @@ void deserializePayload() {
       pRecipe = new Recipe();
     }
     pRecipe->recipeId = doc["recipeId"];
-    pRecipe->data[0] = doc["data"][0];
-    pRecipe->data[1] = doc["data"][1];
+    pRecipe->arduinoId = doc["arduinoid"];
+    
+    JsonArray components = doc["components"];
 
-    updateRecipeComponents(pRecipe->recipeId, pRecipe->data[0], pRecipe->data[1]);
+    for(int i = 0; i < componentsStructSize; i++) {
+
+      int components_0_id = components[i]["id"]; // 1
+      int components_0_weight = components[i]["weight"]; // 100
+      
+      Serial.print("ID = ");
+      Serial.println(components_0_id);
+      Serial.print("Weight = ");
+      Serial.println(components_0_weight);
+      
+      pRecipe->components[i] = {components_0_id, components_0_weight};
+      
+    }
+        
+    //pRecipe->data[0] = doc["data"][0];
+    //pRecipe->data[1] = doc["data"][1];
+
+    //updateRecipeComponents(pRecipe->recipeId, pRecipe->data[0], pRecipe->data[1]);
 
     //udp.println("nice....");
     udp.sendReply("nice");
