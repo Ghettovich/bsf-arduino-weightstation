@@ -87,8 +87,9 @@ void deserializePayload() {
     if (pRecipe == nullptr) {
       pRecipe = new Recipe();
     }
-    pRecipe->recipeId = doc["recipeId"];
     pRecipe->arduinoId = doc["arduinoid"];
+    pRecipe->recipeId = doc["recipeId"];    
+    
     
     JsonArray components = doc["components"];
 
@@ -121,7 +122,8 @@ void broadcastUpdatedRecipe(struct Recipe recipe) {
   char payload[ETHERSIA_MAX_PACKET_SIZE];
 
   doc["arduinoId"] = recipe.arduinoId;
-  doc["iodeviceId"] = recipe.deviceId;
+  doc["iodeviceId"] = recipe.iodeviceId;
+  doc["typeId"] = recipe.typeId;
   doc["recipeId"] = recipe.recipeId;
 
   // ToDo: refactor with correct component id

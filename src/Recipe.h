@@ -8,7 +8,8 @@ struct Component {
 
 struct Recipe {
     int arduinoId = 2;
-    int deviceId = 1;
+    int iodeviceId = 1;
+    int typeId = 1;    
     int recipeId = 0;
     Component components[3] = {
             {1, 0},
