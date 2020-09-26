@@ -84,52 +84,48 @@ void deserializePayload() {
     Serial.println(error.c_str());
     return;
   } else {
-    if (pRecipe == nullptr) {
-      pRecipe = new Recipe();
-    }
-    pRecipe->arduinoId = doc["arduinoid"];
-    pRecipe->recipeId = doc["recipeId"];    
+    int arduinoId = doc["arduinoid"];    
+    int recipeId = doc["recipeId"];
     
-    
+    setRecipeId(recipeId);
     JsonArray components = doc["components"];
 
-    for(int i = 0; i < componentsStructSize; i++) {
+    Serial.print("Recipe id = ");
+    Serial.println(recipeId);
 
-      int components_0_id = components[i]["id"]; // 1
-      int components_0_weight = components[i]["weight"]; // 100
-      
-      Serial.print("ID = ");
-      Serial.println(components_0_id);
-      Serial.print("Weight = ");
-      Serial.println(components_0_weight);
-      
-      pRecipe->components[i] = {components_0_id, components_0_weight};
-      
+    for (int i = 0; i < maxComponentSize; i++) {
+
+      int componentId = components[i]["id"]; // 1
+      int targetWeight = components[i]["weight"]; // 100
+
+      if (componentId && targetWeight) {
+        setRecipeComponent(componentId, targetWeight);
+      }
     }
-        
-    //pRecipe->data[0] = doc["data"][0];
-    //pRecipe->data[1] = doc["data"][1];
-
-    //updateRecipeComponents(pRecipe->recipeId, pRecipe->data[0], pRecipe->data[1]);
-
-    //udp.println("nice....");
-    udp.sendReply("nice");
+    
+    udp.sendReply("{\"state\":0}");
+    updateDisplayStatus(displayRecipeStates::START_WITH_RECIPE);
   }
 }
 
-void broadcastUpdatedRecipe(struct Recipe recipe) {
+void createFullStatePayload(JsonObject info, JsonArray items) {  
+  info["arduinoId"] = recipe->arduinoId;
+  info["state"] = getCurrentState();
+  info["iodeviceId"] = recipe->iodeviceId;
+  info["typeId"] = recipe->typeId;
+  info["recipeId"] = recipe->recipeId;
+
+  addRecipeComponentsToJsonArray(items);
+}
+
+void broadcastUpdatedRecipe() {
   StaticJsonDocument <ETHERSIA_MAX_PACKET_SIZE> doc;
   char payload[ETHERSIA_MAX_PACKET_SIZE];
 
-  doc["arduinoId"] = recipe.arduinoId;
-  doc["iodeviceId"] = recipe.iodeviceId;
-  doc["typeId"] = recipe.typeId;
-  doc["recipeId"] = recipe.recipeId;
+  JsonObject info = doc.to<JsonObject>();
+  JsonArray componentArray = doc.createNestedArray("components");
 
-  // ToDo: refactor with correct component id
-  doc["componentId"] = selectedComponent;
-  doc["weight"] = recipe.data[0];
-
+  createFullStatePayload(info, componentArray);  
   serializeJson(doc, payload);
 
   if (!udp.remoteAddress()) {
@@ -139,6 +135,9 @@ void broadcastUpdatedRecipe(struct Recipe recipe) {
     udp.remoteAddress().println();
   }
 
+  Serial.println("printing payload on UDP reply");
+  Serial.println(payload);
+
   udp.println(payload);
   udp.send();
 }
@@ -147,19 +146,15 @@ void replyWithFullStatePayload() {
   StaticJsonDocument <ETHERSIA_MAX_PACKET_SIZE> doc;
   char payload[ETHERSIA_MAX_PACKET_SIZE];
 
-  if (pRecipe == nullptr) {
-    Recipe recipe = Recipe();
-    doc["arduinoId"] = recipe.arduinoId;
-    doc["iodeviceId"] = recipe.deviceId;
-    doc["recipeId"] = recipe.recipeId;
-  } else {
-    doc["arduinoId"] = pRecipe->arduinoId;
-    doc["iodeviceId"] = pRecipe->deviceId;
-    doc["recipeId"] = pRecipe->recipeId;
-  }
+  JsonObject info = doc.to<JsonObject>();
+  JsonArray componentArray = doc.createNestedArray("components");
 
-
+  createFullStatePayload(info, componentArray);
   serializeJson(doc, payload);
+
+  
+  Serial.println("printing payload on TCP reply");
+  Serial.println(payload);
 
   http.printHeaders(http.typeJson);
   http.println(payload);

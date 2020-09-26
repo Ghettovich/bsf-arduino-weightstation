@@ -1,5 +1,4 @@
 #include "HX711.h"
-#include <util/atomic.h>
 
 HX711 scale;
 
@@ -63,7 +62,7 @@ void hx711SetupUp() {
 
 void hx711Loop() {
 
-  if (delayRunning && (millis() - delayStart) >= 500) {
+  if (delayRunning && (millis() - delayStart) >= 2000) {
 
     scale.power_up();    
     
