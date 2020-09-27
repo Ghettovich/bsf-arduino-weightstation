@@ -33,12 +33,13 @@ void setRecipeId(int _recipeId) {
   recipe->recipeId = _recipeId;
 }
 
-void setRecipeComponent(int id, int weight) {
-  for (int i = 0; i < maxComponentSize; i++) {
-    if (id == recipe->components[i].componentId) {
-      recipe->components[i].targetWeight = weight;
-    }
-  }
+/** Insert a component with its id and weight. */
+void insertComponentWithIdAndWeight(int id, int weight) {   
+  recipe->components[recipe->componentSize].componentId = id;
+  recipe->components[recipe->componentSize].targetWeight = weight;
+  recipe->componentSize++;
+  Serial.println("added component!");
+
 }
 
 void addRecipeComponentsToJsonArray(JsonArray items) {
@@ -87,11 +88,6 @@ void drawRecipeInfo() {
     Serial.println("recipeId niet bekend.");
   }
   else {
-    //    Tft.drawString("Component 1:", 10, 130, 2, WHITE);
-    //    Tft.drawNumber(recipe.components[0].targetWeight, 160, 130, 2, RED);
-    //    Tft.drawString("Component 2:", 10, 180, 2, WHITE);
-    //    Tft.drawNumber(recipe.components[1].targetWeight, 160, 180, 2, RED);
-
     Tft.drawString("Druk op start.", 10, 230, 2, GREEN);
   }
 }
@@ -115,29 +111,30 @@ void drawSelectedComponentInfo(int color) {
       selectedComponent == components ::WATER ||
       selectedComponent == components ::SAND) {
 
-    Tft.fillRectangle(0, 115, 235, 165, BLACK);
-    Tft.drawString(componentsTextDisplay[selectedComponent], 20, 120, 3, color);
+    Tft.fillRectangle(0, 115, 240, 160, BLACK);
+    Tft.drawString(componentsTextDisplay[selectedComponent], 20, 120, 2, color);
     Tft.drawString("TARGET =", 20, 160, 2, color);
-    Tft.drawString("HUIDIG =", 20, 200, 2, color);
+    Tft.drawString("HUIDIG =", 20, 210, 2, color);
 
-    Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 140, 160, 2, color);
-    Tft.drawNumber(recipe->components[selectedComponent].targetWeight, 130, 220, 3, color);
-    
+    Tft.drawNumber(recipe->components[selectedComponent].targetWeight, 130, 160, 2, color);
+    Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 140, 210, 3, color);
   }
 }
 
 /** Update displayed weight with selected component */
 void updateRecipeWeightInfo() {
-  Tft.fillRectangle(130, 220, 110, 70, BLACK);
+  int x = 140, y = 210;
+  Tft.fillRectangle(120, 200, 110, 70, BLACK);
+
   switch (selectedComponent) {
     case components::WATER :
-      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 120, 220, 3, BLUE);
+      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, BLUE);
       break;
     case components::PLASTIFIER :
-      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 120, 220, 3, GRAY1);
+      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, GRAY1);
       break;
     case components::SAND :
-      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 120, 220, 3, YELLOW);
+      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, YELLOW);
       break;
   }
 }
@@ -213,25 +210,13 @@ void readTouchInput(int x, int y) {
   else if (y >= 280) {
     // touch plus '+' sign
     if (x >= 25 && x <= 70) {
-      if (selectedComponent == components::PLASTIFIER) {
-        //recipe.data[0]++;
-      }
-      else if (selectedComponent == components::WATER) {
-        //recipe.data[1]++;
-      }
-
+      recipe->components[selectedComponent].currentWeight++;
       Serial.println("got touch");
       updateRecipeWeightInfo();
     }
     // touch minus '-' sign
     else if (x >= 75 && x <= 110) {
-      // ToDo: implement for all necessary components
-      if (selectedComponent == components::PLASTIFIER) {
-        //recipe.data[0]--;
-      }
-      else if (selectedComponent == components::WATER) {
-        //recipe.data[1]--;
-      }
+      recipe->components[selectedComponent].currentWeight--;
 
       Serial.println("got touch");
       updateRecipeWeightInfo();

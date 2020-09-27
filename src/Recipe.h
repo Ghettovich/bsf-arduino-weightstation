@@ -16,6 +16,7 @@ struct Recipe {
     int iodeviceId = 1;
     int typeId = 1;    
     int recipeId = 0;
+    int componentSize = 0;
     Component components[maxComponentSize];
 };
 

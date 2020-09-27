@@ -2,7 +2,9 @@
 #include <ArduinoJson.h>
 #include "src/Recipe.h"
 
-const int componentsStructSize = 3;
+bool broadcastRecipe = false, delayRunningRecipe = false;
+unsigned long delayStartRecipe = 0;
+
 
 const int etherSS = 53, port = 6677;
 const char *serverIP = "2a02:a213:9f81:4e80:2aab:51a2:d551:1c33";
@@ -15,6 +17,10 @@ UDPSocket udp(ether, port);
 
 // HTTP server
 HTTPServer http(ether);
+
+void setBroadcastRecipe(bool _broadcastRecipe) {
+  broadcastRecipe = _broadcastRecipe;
+}
 
 void setEthernetPinDefinitions() {
   pinMode(etherSS, OUTPUT);
@@ -43,9 +49,12 @@ void initEthernetAdapter() {
   ether.linkLocalAddress().println();
   Serial.print("Our global address is: ");
   ether.globalAddress().println();
+
+   // Start timer, unsigned long should last around 50 days. 
+  delayStartRecipe = millis();
 }
 
-void receiveEtherPacket() {
+void etherLoop() {
   if (ether.receivePacket()) {
 
     // HTTP endpoints
@@ -67,6 +76,16 @@ void receiveEtherPacket() {
 
       deserializePayload();
     }
+
+    if (broadcastRecipe && (millis() - delayStartRecipe) >= 2000) {
+          Serial.println("sendiing reciipe payload.");
+
+      broadcastUpdatedRecipe();
+      
+      delayStartRecipe = millis();
+      delayRunningRecipe = true;
+    }
+
   }
 }
 
@@ -84,31 +103,48 @@ void deserializePayload() {
     Serial.println(error.c_str());
     return;
   } else {
-    int arduinoId = doc["arduinoid"];    
+    int arduinoId = doc["arduinoid"];
     int recipeId = doc["recipeId"];
-    
+    int componentSize = doc["componentSize"];
+
     setRecipeId(recipeId);
     JsonArray components = doc["components"];
 
     Serial.print("Recipe id = ");
     Serial.println(recipeId);
 
-    for (int i = 0; i < maxComponentSize; i++) {
+    Serial.print("Comp size = ");
+    Serial.println(componentSize);
 
+    for (int i = 0; i < componentSize; i++) {
       int componentId = components[i]["id"]; // 1
       int targetWeight = components[i]["weight"]; // 100
 
       if (componentId && targetWeight) {
-        setRecipeComponent(componentId, targetWeight);
+        insertComponentWithIdAndWeight(componentId, targetWeight);
       }
     }
+
     
-    udp.sendReply("{\"state\":0}");
+    updateState(StateCode::RECIPE_SET);
+    sendUdpReplyWithStateCode();
+
     updateDisplayStatus(displayRecipeStates::START_WITH_RECIPE);
+    setBroadcastRecipe(true);
   }
 }
 
-void createFullStatePayload(JsonObject info, JsonArray items) {  
+void sendUdpReplyWithStateCode() {
+  char payload[ETHERSIA_MAX_PACKET_SIZE];
+  const size_t capacity = JSON_OBJECT_SIZE(1);
+  DynamicJsonDocument doc(capacity);
+
+  doc["state"] = getCurrentState();
+  serializeJson(doc, payload);
+  udp.sendReply(payload);
+}
+
+void createFullStatePayload(JsonObject info, JsonArray items) {
   info["arduinoId"] = recipe->arduinoId;
   info["state"] = getCurrentState();
   info["iodeviceId"] = recipe->iodeviceId;
@@ -125,7 +161,7 @@ void broadcastUpdatedRecipe() {
   JsonObject info = doc.to<JsonObject>();
   JsonArray componentArray = doc.createNestedArray("components");
 
-  createFullStatePayload(info, componentArray);  
+  createFullStatePayload(info, componentArray);
   serializeJson(doc, payload);
 
   if (!udp.remoteAddress()) {
@@ -152,7 +188,7 @@ void replyWithFullStatePayload() {
   createFullStatePayload(info, componentArray);
   serializeJson(doc, payload);
 
-  
+
   Serial.println("printing payload on TCP reply");
   Serial.println(payload);
 

@@ -26,14 +26,13 @@ void setup() {
   setEthernetPinDefinitions();
 
   // initialize load cell 
-  hx711SetupUp();  
-
+  //hx711SetupUp(); 
   // initialize hardware
   initTFTouchScreen();
-  delay(500);
-  initEthernetAdapter();
-  delay(500);
   updateDisplay();
+  
+  initEthernetAdapter();
+  
 
   state = StateCode::READY;
   Serial.println("Ready.");
@@ -41,9 +40,9 @@ void setup() {
 
 void loop() {
   // check if load has new data
-  hx711Loop();
+  //hx711Loop();
   // check if ether has a pending packet
-  receiveEtherPacket();
+  etherLoop();
   // a point object holds x y and z coordinates.
   displayLoop();
 
