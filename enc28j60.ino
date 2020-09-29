@@ -2,9 +2,8 @@
 #include <ArduinoJson.h>
 #include "src/Recipe.h"
 
-bool broadcastRecipe = false, delayRunningRecipe = false;
+bool broadcastRecipe = false;
 unsigned long delayStartRecipe = 0;
-
 
 const int etherSS = 53, port = 6677;
 const char *serverIP = "2a02:a213:9f81:4e80:2aab:51a2:d551:1c33";
@@ -50,7 +49,7 @@ void initEthernetAdapter() {
   Serial.print("Our global address is: ");
   ether.globalAddress().println();
 
-   // Start timer, unsigned long should last around 50 days. 
+  // Start timer, unsigned long should last around 50 days.
   delayStartRecipe = millis();
 }
 
@@ -60,10 +59,6 @@ void etherLoop() {
     // HTTP endpoints
     if (http.isGet(F("/"))) {
       replyWithFullStatePayload();
-    } else if (http.isGet(F("/test"))) {
-      http.printHeaders(http.typeHtml);
-      http.println(F("<h1>Hello World</h1>"));
-      http.sendReply();
     }
 
     // UDP
@@ -75,26 +70,29 @@ void etherLoop() {
       Serial.println(udp.payloadLength(), DEC);
 
       deserializePayload();
+      udpReplyWithFullState();      
     }
 
-    if (broadcastRecipe && (millis() - delayStartRecipe) >= 2000) {
-          Serial.println("sendiing reciipe payload.");
+    if (broadcastRecipe && (millis() - delayStartRecipe) >= 3000) {
+      Serial.println("sendiing reciipe payload.");
 
       broadcastUpdatedRecipe();
-      
+
       delayStartRecipe = millis();
-      delayRunningRecipe = true;
+      broadcastRecipe = true;
     }
+    else {
+      ether.rejectPacket();
+    }
+
 
   }
 }
 
+
 void deserializePayload() {
   Serial.println("copying payload...");
   StaticJsonDocument <ETHERSIA_MAX_PACKET_SIZE> doc;
-  char json[ETHERSIA_MAX_PACKET_SIZE];
-
-  // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, udp.payload());
 
   // Test if parsing succeeds.
@@ -107,14 +105,11 @@ void deserializePayload() {
     int recipeId = doc["recipeId"];
     int componentSize = doc["componentSize"];
 
-    setRecipeId(recipeId);
+    if (recipeId) {
+      setRecipeId(recipeId);
+    }
+
     JsonArray components = doc["components"];
-
-    Serial.print("Recipe id = ");
-    Serial.println(recipeId);
-
-    Serial.print("Comp size = ");
-    Serial.println(componentSize);
 
     for (int i = 0; i < componentSize; i++) {
       int componentId = components[i]["id"]; // 1
@@ -125,23 +120,12 @@ void deserializePayload() {
       }
     }
 
-    
     updateState(StateCode::RECIPE_SET);
-    sendUdpReplyWithStateCode();
-
     updateDisplayStatus(displayRecipeStates::START_WITH_RECIPE);
+
+    // Set loop to broadcast udp payload to host
     setBroadcastRecipe(true);
   }
-}
-
-void sendUdpReplyWithStateCode() {
-  char payload[ETHERSIA_MAX_PACKET_SIZE];
-  const size_t capacity = JSON_OBJECT_SIZE(1);
-  DynamicJsonDocument doc(capacity);
-
-  doc["state"] = getCurrentState();
-  serializeJson(doc, payload);
-  udp.sendReply(payload);
 }
 
 void createFullStatePayload(JsonObject info, JsonArray items) {
@@ -150,8 +134,23 @@ void createFullStatePayload(JsonObject info, JsonArray items) {
   info["iodeviceId"] = recipe->iodeviceId;
   info["typeId"] = recipe->typeId;
   info["recipeId"] = recipe->recipeId;
+  info["low"] = 1;
+  info["selecComp"] = getSelectedComponent();
 
   addRecipeComponentsToJsonArray(items);
+}
+
+void udpReplyWithFullState() {
+  StaticJsonDocument <ETHERSIA_MAX_PACKET_SIZE> doc;
+  char payload[ETHERSIA_MAX_PACKET_SIZE];
+
+  JsonObject info = doc.to<JsonObject>();
+  JsonArray componentArray = doc.createNestedArray("components");
+
+  createFullStatePayload(info, componentArray);
+  serializeJson(doc, payload);
+
+  udp.sendReply(payload);
 }
 
 void broadcastUpdatedRecipe() {

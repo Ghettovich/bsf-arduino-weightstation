@@ -6,7 +6,7 @@
 #include "src/Recipe.h"
 
 const int tftWidth = 240, tftHeight = 320;
-const int SD_CS_PIN = 4, TFT_CS_PIN = 5;
+const int SD_CS_PIN = 4, TFT_CS_PIN = 5, TFT_DC = 6;
 
 int displayStatus = 0, prevDisplayStatus = 0;
 enum displayRecipeStates { START = 0, START_WITH_RECIPE = 1, SELECT_COMP = 2, UPDATE = 3 };
@@ -31,6 +31,17 @@ void updateDisplayStatus(int _displayStatus) {
 
 void setRecipeId(int _recipeId) {
   recipe->recipeId = _recipeId;
+}
+
+int getSelectedComponent() {
+  if(selectedComponent == components::WATER) {
+      return 1;
+  } else if (selectedComponent == components::SAND)  {
+    return 2;
+  } else if (selectedComponent == components::PLASTIFIER) {
+    return 3;
+  } 
+  return selectedComponent;
 }
 
 /** Insert a component with its id and weight. */
@@ -59,6 +70,9 @@ void setTFTPinDefinitions() {
   // TFT_CS TFT chip select
   pinMode(TFT_CS_PIN, OUTPUT);
   digitalWrite(TFT_CS_PIN, HIGH);
+  // TFT_DC TFT chip select
+  pinMode(TFT_DC, OUTPUT);
+  digitalWrite(TFT_DC, HIGH);
 }
 
 /** Initialize TFT and draw start screen */

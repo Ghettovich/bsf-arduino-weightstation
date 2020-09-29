@@ -5,7 +5,7 @@
 
 int state = 0, prevState = 0;
 enum StateCode {
-  READY = 0, RECIPE_SET, RECIPE_TARGET_UNDERFLOW, RECIPE_TARGET_OVERFLOW
+  READY = 0, RECIPE_SET = 20, RECIPE_TARGETS_MET = 21
 };
 
 void updateState(int newState) {
@@ -19,19 +19,20 @@ int getCurrentState() {
 }
 
 void setup() {
-  Serial.begin(115200);  
+  Serial.begin(57600);  
     
   // set pins manually
-  setTFTPinDefinitions();
   setEthernetPinDefinitions();
-
+  setTFTPinDefinitions();
+  
   // initialize load cell 
   //hx711SetupUp(); 
   // initialize hardware
   initTFTouchScreen();
-  updateDisplay();
-  
-  initEthernetAdapter();
+  updateDisplay(); 
+
+  delay(100);
+  initEthernetAdapter(); 
   
 
   state = StateCode::READY;

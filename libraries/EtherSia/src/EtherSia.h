@@ -27,7 +27,7 @@
  * sending and receiving packets, so it should be bigger than the
  * biggest packet you want to send or receive.
  */
-#define ETHERSIA_MAX_PACKET_SIZE       1000
+#define ETHERSIA_MAX_PACKET_SIZE       1500
 
 
 
