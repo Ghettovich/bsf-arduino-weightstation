@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <ArduinoJson.h>
 #include "src/Recipe.h"
+#include "src/Display.h"
 
 
 int state = 0, prevState = 0;
@@ -26,7 +27,7 @@ void setup() {
   setTFTPinDefinitions();
   
   // initialize load cell 
-  //hx711SetupUp(); 
+  hx711Setup(); 
   // initialize hardware
   initTFTouchScreen();
   updateDisplay(); 
@@ -41,7 +42,7 @@ void setup() {
 
 void loop() {
   // check if load has new data
-  //hx711Loop();
+  hx711Loop();
   // check if ether has a pending packet
   etherLoop();
   // a point object holds x y and z coordinates.

@@ -2,11 +2,13 @@
 #include <ArduinoJson.h>
 #include "src/Recipe.h"
 
+const int intervalBroadcastRecipe = 1000;
 bool broadcastRecipe = false;
 unsigned long delayStartRecipe = 0;
 
 const int etherSS = 53, port = 6677;
 const char *serverIP = "2a02:a213:9f81:4e80:2aab:51a2:d551:1c33";
+                              
 
 // ENC28J60 Ethernet Interface
 EtherSia_ENC28J60 ether(etherSS);
@@ -73,7 +75,7 @@ void etherLoop() {
       udpReplyWithFullState();      
     }
 
-    if (broadcastRecipe && (millis() - delayStartRecipe) >= 3000) {
+    if (broadcastRecipe && (millis() - delayStartRecipe) >= intervalBroadcastRecipe) {
       Serial.println("sendiing reciipe payload.");
 
       broadcastUpdatedRecipe();
@@ -121,7 +123,7 @@ void deserializePayload() {
     }
 
     updateState(StateCode::RECIPE_SET);
-    updateDisplayStatus(displayRecipeStates::START_WITH_RECIPE);
+    updateDisplayStatus(displayRecipeStates::START_WITH_RECIPE);    
 
     // Set loop to broadcast udp payload to host
     setBroadcastRecipe(true);
@@ -170,7 +172,7 @@ void broadcastUpdatedRecipe() {
     udp.remoteAddress().println();
   }
 
-  Serial.println("printing payload on UDP reply");
+  Serial.println("Broadcasting payload to host");
   Serial.println(payload);
 
   udp.println(payload);

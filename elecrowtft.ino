@@ -8,8 +8,9 @@
 const int tftWidth = 240, tftHeight = 320;
 const int SD_CS_PIN = 4, TFT_CS_PIN = 5, TFT_DC = 6;
 
-int displayStatus = 0, prevDisplayStatus = 0;
-enum displayRecipeStates { START = 0, START_WITH_RECIPE = 1, SELECT_COMP = 2, UPDATE = 3 };
+
+displayRecipeStates displayStatus, prevDisplayStatus;
+
 const char *componentsTextDisplay[] = { "Water", "Zand", "Plastificeerder" };
 
 int ColorPaletteHigh = 60;
@@ -25,8 +26,18 @@ int selectedComponent = -1;
 // The 2.8" TFT Touch shield has 300 ohms across the X plate
 TouchScreen ts = TouchScreen(XP, YP, XM, YM); //init TouchScreen port pins
 
-void updateDisplayStatus(int _displayStatus) {
+void updateDisplayStatus(displayRecipeStates _displayStatus) {
+  Serial.print("update display triggered \t ");
+  Serial.println(_displayStatus);
+  
+  //prevDisplayStatus = displayStatus;
   displayStatus = _displayStatus;
+
+  Serial.print("prevDisplayStatus =  \t ");
+  Serial.println(prevDisplayStatus);
+
+  Serial.print("diplayStatus =  \t ");
+  Serial.println(displayStatus);
 }
 
 void setRecipeId(int _recipeId) {
@@ -42,6 +53,10 @@ int getSelectedComponent() {
     return 3;
   } 
   return selectedComponent;
+}
+
+void setRecipeForScale() {
+  setCurrentRecipe(*recipe);
 }
 
 /** Insert a component with its id and weight. */
@@ -103,6 +118,9 @@ void drawRecipeInfo() {
   }
   else {
     Tft.drawString("Druk op start.", 10, 230, 2, GREEN);
+
+    // Pass pointer of recipe to hx711 tab
+    setRecipeForScale();    
   }
 }
 
@@ -112,10 +130,6 @@ void drawSelectComponent() {
   Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
   Tft.drawString("Recept", 5, 20, 2, WHITE);
   Tft.drawString("KIES COMPONENT", 40, 80, 2, WHITE);
-  Tft.drawChar('+', 25, 280, 5, WHITE);
-  Tft.drawRectangle(25, 280, 35, 35, WHITE);
-  Tft.drawChar('-', 75, 280, 5, WHITE);
-  Tft.drawRectangle(75, 280, 35, 35, WHITE);
 }
 
 /** Draw selected component with corresponding colors */
@@ -132,6 +146,8 @@ void drawSelectedComponentInfo(int color) {
 
     Tft.drawNumber(recipe->components[selectedComponent].targetWeight, 130, 160, 2, color);
     Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 140, 210, 3, color);
+
+    setCurrentComponent(selectedComponent);
   }
 }
 
@@ -150,6 +166,8 @@ void updateRecipeWeightInfo() {
     case components::SAND :
       Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, YELLOW);
       break;
+      default:
+      Serial.println("selected comp unknown");
   }
 }
 
@@ -165,7 +183,7 @@ void updateDisplay() {
       break;
     case UPDATE:
       // update recipe component
-
+      updateRecipeWeightInfo();
       break;
   }
 }
@@ -173,8 +191,12 @@ void updateDisplay() {
 void displayLoop() {
   processTouch();
 
-  if (prevDisplayStatus != displayStatus) {
+  if (displayStatus != prevDisplayStatus) {
+    Serial.println("Display status changed");
     updateDisplay();
+  }
+  if(selectedComponent != -1) {
+    updateRecipeWeightInfo();
   }
 
   prevDisplayStatus = displayStatus;
