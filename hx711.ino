@@ -23,6 +23,7 @@ void hx711Setup() {
 
   scale.begin(HX711_dout, HX711_sck);
   scale.set_scale(127.15);
+  scale.callibrate_scale(1000, 5);
 }
 
 void setCurrentRecipe(Recipe &recipe) {

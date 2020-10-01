@@ -26,18 +26,9 @@ int selectedComponent = -1;
 // The 2.8" TFT Touch shield has 300 ohms across the X plate
 TouchScreen ts = TouchScreen(XP, YP, XM, YM); //init TouchScreen port pins
 
-void updateDisplayStatus(displayRecipeStates _displayStatus) {
-  Serial.print("update display triggered \t ");
-  Serial.println(_displayStatus);
-  
-  //prevDisplayStatus = displayStatus;
+void updateDisplayStatus(displayRecipeStates _displayStatus) {  
+  prevDisplayStatus = displayStatus;
   displayStatus = _displayStatus;
-
-  Serial.print("prevDisplayStatus =  \t ");
-  Serial.println(prevDisplayStatus);
-
-  Serial.print("diplayStatus =  \t ");
-  Serial.println(displayStatus);
 }
 
 void setRecipeId(int _recipeId) {
@@ -60,7 +51,11 @@ void setRecipeForScale() {
 }
 
 /** Insert a component with its id and weight. */
-void insertComponentWithIdAndWeight(int id, int weight) {   
+void insertComponentWithIdAndWeight(int id, int weight) {
+  if(recipe->componentSize == maxComponentSize) {
+    recipe->componentSize = 0;
+    Serial.println("resetting comp. size");
+  }
   recipe->components[recipe->componentSize].componentId = id;
   recipe->components[recipe->componentSize].targetWeight = weight;
   recipe->componentSize++;
