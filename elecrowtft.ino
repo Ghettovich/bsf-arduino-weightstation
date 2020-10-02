@@ -26,7 +26,7 @@ int selectedComponent = -1;
 // The 2.8" TFT Touch shield has 300 ohms across the X plate
 TouchScreen ts = TouchScreen(XP, YP, XM, YM); //init TouchScreen port pins
 
-void updateDisplayStatus(displayRecipeStates _displayStatus) {  
+void updateDisplayStatus(displayRecipeStates _displayStatus) {
   prevDisplayStatus = displayStatus;
   displayStatus = _displayStatus;
 }
@@ -36,13 +36,13 @@ void setRecipeId(int _recipeId) {
 }
 
 int getSelectedComponent() {
-  if(selectedComponent == components::WATER) {
-      return 1;
+  if (selectedComponent == components::WATER) {
+    return 1;
   } else if (selectedComponent == components::SAND)  {
     return 2;
   } else if (selectedComponent == components::PLASTIFIER) {
     return 3;
-  } 
+  }
   return selectedComponent;
 }
 
@@ -52,7 +52,7 @@ void setRecipeForScale() {
 
 /** Insert a component with its id and weight. */
 void insertComponentWithIdAndWeight(int id, int weight) {
-  if(recipe->componentSize == maxComponentSize) {
+  if (recipe->componentSize == maxComponentSize) {
     recipe->componentSize = 0;
     Serial.println("resetting comp. size");
   }
@@ -115,7 +115,7 @@ void drawRecipeInfo() {
     Tft.drawString("Druk op start.", 10, 230, 2, GREEN);
 
     // Pass pointer of recipe to hx711 tab
-    setRecipeForScale();    
+    setRecipeForScale();
   }
 }
 
@@ -141,8 +141,6 @@ void drawSelectedComponentInfo(int color) {
 
     Tft.drawNumber(recipe->components[selectedComponent].targetWeight, 130, 160, 2, color);
     Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 140, 210, 3, color);
-
-    setCurrentComponent(selectedComponent);
   }
 }
 
@@ -161,7 +159,7 @@ void updateRecipeWeightInfo() {
     case components::SAND :
       Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, YELLOW);
       break;
-      default:
+    default:
       Serial.println("selected comp unknown");
   }
 }
@@ -186,15 +184,26 @@ void updateDisplay() {
 void displayLoop() {
   processTouch();
 
-  if (displayStatus != prevDisplayStatus) {
-    Serial.println("Display status changed");
-    updateDisplay();
-  }
-  if(selectedComponent != -1) {
+  if (selectedComponent != -1 && recipe->recipeId) {
     updateRecipeWeightInfo();
   }
 
+  if (displayStatus != prevDisplayStatus) {
+    Serial.println("Display status changed");
+    updateDisplay();
+  }  
+
   prevDisplayStatus = displayStatus;
+}
+
+void drawComponents(int color, components _selectedComponent) {
+  if (recipe->recipeId != 0) {    
+    selectedComponent = _selectedComponent;
+    setCurrentComponent(selectedComponent);
+    drawSelectedComponentInfo(color);
+  } else {
+    Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
+  }
 }
 
 /** Process touch input if valid pressure detected */
@@ -225,32 +234,14 @@ void readTouchInput(int x, int y) {
         Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
       }
     }
-    else if (x > 90 && x < 140) {
-      selectedComponent = components::WATER;
-      drawSelectedComponentInfo(BLUE);
+    else if (x > 90 && x < 140) { 
+      drawComponents(BLUE, components::WATER);
     }
     else if (x > 140 && x < 190) {
-      selectedComponent = components::SAND;
-      drawSelectedComponentInfo(YELLOW);
+      drawComponents(YELLOW, components::SAND);
     }
     else if (x > 190 && x < tftWidth) {
-      selectedComponent = components::PLASTIFIER;
-      drawSelectedComponentInfo(GRAY1);
-    }
-  }
-  else if (y >= 280) {
-    // touch plus '+' sign
-    if (x >= 25 && x <= 70) {
-      recipe->components[selectedComponent].currentWeight++;
-      Serial.println("got touch");
-      updateRecipeWeightInfo();
-    }
-    // touch minus '-' sign
-    else if (x >= 75 && x <= 110) {
-      recipe->components[selectedComponent].currentWeight--;
-
-      Serial.println("got touch");
-      updateRecipeWeightInfo();
+      drawComponents(GRAY1, components::PLASTIFIER);
     }
   }
 }

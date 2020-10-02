@@ -86,8 +86,6 @@ void etherLoop() {
     else {
       ether.rejectPacket();
     }
-
-
   }
 }
 
