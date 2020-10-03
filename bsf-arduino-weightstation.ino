@@ -29,7 +29,7 @@ void setup() {
   // initialize load cell 
   hx711Setup(); 
   // initialize hardware
-  initTFTouchScreen();
+  initTFTouchScreen();  
   updateDisplay(); 
 
   delay(100);

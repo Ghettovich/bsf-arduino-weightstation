@@ -14,7 +14,7 @@ displayRecipeStates displayStatus, prevDisplayStatus;
 const char *componentsTextDisplay[] = { "Water", "Zand", "Plastificeerder" };
 
 int ColorPaletteHigh = 60;
-int color = WHITE;  //Paint brush color
+int color = WHITE, currentColor = WHITE;  //Paint brush color
 unsigned int colors[4] = {RED, BLUE, YELLOW, GRAY1};
 
 Recipe *recipe = new Recipe;
@@ -54,13 +54,10 @@ void setRecipeForScale() {
 void insertComponentWithIdAndWeight(int id, int weight) {
   if (recipe->componentSize == maxComponentSize) {
     recipe->componentSize = 0;
-    Serial.println("resetting comp. size");
   }
   recipe->components[recipe->componentSize].componentId = id;
   recipe->components[recipe->componentSize].targetWeight = weight;
   recipe->componentSize++;
-  Serial.println("added component!");
-
 }
 
 void addRecipeComponentsToJsonArray(JsonArray items) {
@@ -106,42 +103,41 @@ void drawRecipeInfo() {
 
   // ToDo make more room for 3rd components or something smart.
 
-  if (recipe->recipeId == 0) {
-    Tft.drawString("Geen recept bekend", 10, 230, 2, WHITE);
-
-    Serial.println("recipeId niet bekend.");
-  }
-  else {
+  if (recipe->recipeId > 0) {
     Tft.drawString("Druk op start.", 10, 230, 2, GREEN);
 
     // Pass pointer of recipe to hx711 tab
     setRecipeForScale();
   }
+
+  Tft.drawChar('T', 200, 280, 5, WHITE);
+  Tft.drawRectangle(200, 280, 35, 35, WHITE);
 }
 
 /** Draw select component info with temporary plus and minus buttons */
 void drawSelectComponent() {
-  Tft.fillRectangle(0, 60, tftWidth, tftHeight, BLACK);
-  Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
-  Tft.drawString("Recept", 5, 20, 2, WHITE);
-  Tft.drawString("KIES COMPONENT", 40, 80, 2, WHITE);
+  if (recipe->recipeId != 0) {    
+    Tft.fillRectangle(0, 60, tftWidth, tftHeight, BLACK);
+    Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
+    Tft.drawString("Recept", 5, 20, 2, WHITE);
+    Tft.drawString("KIES COMPONENT", 40, 80, 2, WHITE);
+    
+    drawSelectedComponentInfo();
+  } else {
+    Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
+  }
 }
 
+
 /** Draw selected component with corresponding colors */
-void drawSelectedComponentInfo(int color) {
+void drawSelectedComponentInfo() {
+  Tft.fillRectangle(0, 115, 240, 160, BLACK);
+  Tft.drawString(componentsTextDisplay[selectedComponent], 20, 120, 2, currentColor);
+  Tft.drawString("TARGET =", 20, 160, 2, currentColor);
+  Tft.drawString("HUIDIG =", 20, 210, 2, currentColor);
 
-  if (selectedComponent == components ::PLASTIFIER ||
-      selectedComponent == components ::WATER ||
-      selectedComponent == components ::SAND) {
-
-    Tft.fillRectangle(0, 115, 240, 160, BLACK);
-    Tft.drawString(componentsTextDisplay[selectedComponent], 20, 120, 2, color);
-    Tft.drawString("TARGET =", 20, 160, 2, color);
-    Tft.drawString("HUIDIG =", 20, 210, 2, color);
-
-    Tft.drawNumber(recipe->components[selectedComponent].targetWeight, 130, 160, 2, color);
-    Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 140, 210, 3, color);
-  }
+  Tft.drawNumber(recipe->components[selectedComponent].targetWeight, 130, 160, 2, currentColor);
+  Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 140, 210, 3, currentColor);
 }
 
 /** Update displayed weight with selected component */
@@ -164,6 +160,20 @@ void updateRecipeWeightInfo() {
   }
 }
 
+
+void drawTareScreen() {
+  Tft.fillRectangle(0, 60, tftWidth, tftHeight, BLACK);
+  Tft.drawString("Leeg weegschaal en", 10, 80, 2, WHITE);
+  Tft.drawString("druk OK", 10, 120, 2, WHITE);
+
+  Tft.fillRectangle(40, 160, 160, 80, GREEN);
+  Tft.drawString("OK", 100, 185, 4, WHITE);
+}
+
+void drawRequestObjectForTare() {
+
+}
+
 /** Update display based on state, always called in loop when currenState != prevState */
 void updateDisplay() {
   switch (displayStatus) {
@@ -175,8 +185,13 @@ void updateDisplay() {
       drawSelectComponent();
       break;
     case UPDATE:
-      // update recipe component
       updateRecipeWeightInfo();
+      break;
+    case TARE:
+      drawTareScreen();
+      break;
+    case CALIBRATE_START:
+      drawRequestObjectForTare();
       break;
   }
 }
@@ -184,6 +199,7 @@ void updateDisplay() {
 void displayLoop() {
   processTouch();
 
+  // this check should be moved to update recipe weight info (test!)
   if (selectedComponent != -1 && recipe->recipeId) {
     updateRecipeWeightInfo();
   }
@@ -191,20 +207,20 @@ void displayLoop() {
   if (displayStatus != prevDisplayStatus) {
     Serial.println("Display status changed");
     updateDisplay();
-  }  
+  }
 
   prevDisplayStatus = displayStatus;
 }
 
-void drawComponents(int color, components _selectedComponent) {
-  if (recipe->recipeId != 0) {    
-    selectedComponent = _selectedComponent;
-    setCurrentComponent(selectedComponent);
-    drawSelectedComponentInfo(color);
-  } else {
-    Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
-  }
-}
+//void drawComponents(int color, components _selectedComponent) {
+//  if (recipe->recipeId != 0) {
+//    selectedComponent = _selectedComponent;
+//    setCurrentComponent(selectedComponent);
+//    drawSelectedComponentInfo(color);
+//  } else {
+//    Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
+//  }
+//}
 
 /** Process touch input if valid pressure detected */
 void processTouch() {
@@ -227,21 +243,38 @@ void readTouchInput(int x, int y) {
   {
     // Start button pressed, update UI and request user to select component
     if (x > 0 && x < 90) {
-      if (recipe->recipeId > 0) {
-        drawSelectComponent();
-      }
-      else if (recipe->recipeId == 0) {
-        Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
-      }
+      updateDisplayStatus(displayRecipeStates::START);
     }
-    else if (x > 90 && x < 140) { 
-      drawComponents(BLUE, components::WATER);
+    else if (x > 90 && x < 140) {
+      currentColor = BLUE;
+      selectedComponent = components::WATER;
+      updateDisplayStatus(displayRecipeStates::SELECT_COMP);
+      //drawComponents(BLUE, components::WATER);
     }
     else if (x > 140 && x < 190) {
-      drawComponents(YELLOW, components::SAND);
+      currentColor = YELLOW;
+      selectedComponent = components::SAND;
+      updateDisplayStatus(displayRecipeStates::SELECT_COMP);
+      //drawComponents(YELLOW, components::SAND);
     }
     else if (x > 190 && x < tftWidth) {
-      drawComponents(GRAY1, components::PLASTIFIER);
+      currentColor = GRAY1;
+      selectedComponent = components::PLASTIFIER;
+      updateDisplayStatus(displayRecipeStates::SELECT_COMP);
+      //drawComponents(GRAY1, components::PLASTIFIER);
+    }
+  }
+  else if (y >= 160 && y < 240) {
+    if (x > 40 && x < 200 && displayStatus == displayRecipeStates::TARE) {
+      Serial.println("OK pressed, start taring...");
+    }
+  }
+  else if (y >= 280) {
+    // touch tare button
+    if (x >= 200 && x <= tftWidth) {
+      Serial.println("Tare pressed");
+      updateDisplayStatus(displayRecipeStates::TARE);
+      //drawTareScreen();
     }
   }
 }

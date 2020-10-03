@@ -13,11 +13,18 @@ bool delayRunning = false;
 Recipe *currentRecipe;// = new Recipe;
 int currentComponent = -1;
 
-void hx711Setup() {
-  Serial.println(__FILE__);
-  Serial.print("LIBRARY VERSION: ");
-  Serial.println(HX711_LIB_VERSION);
+int tareWeight = 0;
+bool tareScale = false;
 
+void setTareScale(bool _tareScale) {
+  tareScale = _tareScale;
+}
+
+int getTargeWeight() {
+  return tareWeight;
+}
+
+void hx711Setup() {
   delayStart = millis();
   delayRunning = true;
 
