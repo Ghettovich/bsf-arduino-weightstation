@@ -76,7 +76,7 @@ void etherLoop() {
     }
 
     if (broadcastRecipe && (millis() - delayStartRecipe) >= intervalBroadcastRecipe) {
-      Serial.println("sendiing reciipe payload.");
+      Serial.println("sendiing recipe payload.");
 
       broadcastUpdatedRecipe();
 
@@ -124,7 +124,7 @@ void deserializePayload() {
     updateDisplayStatus(displayRecipeStates::START_WITH_RECIPE);    
 
     // Set loop to broadcast udp payload to host
-    setBroadcastRecipe(true);
+    setBroadcastRecipe(true);    
   }
 }
 

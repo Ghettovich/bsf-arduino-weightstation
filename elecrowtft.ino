@@ -8,6 +8,9 @@
 const int tftWidth = 240, tftHeight = 320;
 const int SD_CS_PIN = 4, TFT_CS_PIN = 5, TFT_DC = 6;
 
+const int intervalUpdate = 250;
+unsigned long delayUpdateStart = 0;
+bool delayUpdateRunning = false;
 
 displayRecipeStates displayStatus, prevDisplayStatus;
 
@@ -20,6 +23,11 @@ unsigned int colors[4] = {RED, BLUE, YELLOW, GRAY1};
 Recipe *recipe = new Recipe;
 int selectedComponent = -1;
 
+const int touchIntervalMS = 250;
+bool touchInterval = true;
+unsigned long delayTouch = 0;
+
+float tareWeight = -1;
 
 // For better pressure precision, we need to know the resistance
 // between X+ and X- Use any multimeter to read it
@@ -31,8 +39,16 @@ void updateDisplayStatus(displayRecipeStates _displayStatus) {
   displayStatus = _displayStatus;
 }
 
+void setDelayUpdateRunning(bool _delayUpdateRunning) {
+  delayUpdateRunning = _delayUpdateRunning;
+}
+
 void setRecipeId(int _recipeId) {
   recipe->recipeId = _recipeId;
+}
+
+void setTareWeight(int _tareWeight) {
+  tareWeight = _tareWeight;
 }
 
 int getSelectedComponent() {
@@ -86,16 +102,22 @@ void setTFTPinDefinitions() {
 void initTFTouchScreen() {
   //init TFT library
   Tft.TFTinit();
+
+  // Start timer for touch
+  delayTouch = millis();
+  delayUpdateStart = millis();
+}
+
+/** Draw recipe info with targets from received recipe (0 if none) */
+void drawRecipeInfo() {
+  Serial.println("drawing start...");
   Tft.fillRectangle(0, 60, tftWidth, tftHeight, BLACK);
   Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
   Tft.drawString("Start", 5, 20, 2, WHITE);
   Tft.fillRectangle(90, 0, 50, ColorPaletteHigh, BLUE);
   Tft.fillRectangle(140, 0, 50, ColorPaletteHigh, YELLOW);
   Tft.fillRectangle(190, 0, 50, ColorPaletteHigh, GRAY1);
-}
 
-/** Draw recipe info with targets from received recipe (0 if none) */
-void drawRecipeInfo() {
   Tft.fillRectangle(0, 60, tftWidth, tftHeight, BLACK);
   Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
   Tft.drawString("Start", 5, 20, 2, WHITE);
@@ -104,7 +126,7 @@ void drawRecipeInfo() {
   // ToDo make more room for 3rd components or something smart.
 
   if (recipe->recipeId > 0) {
-    Tft.drawString("Druk op start.", 10, 230, 2, GREEN);
+    Tft.drawString("Kies component.", 10, 230, 2, GREEN);
 
     // Pass pointer of recipe to hx711 tab
     setRecipeForScale();
@@ -112,16 +134,18 @@ void drawRecipeInfo() {
 
   Tft.drawChar('T', 200, 280, 5, WHITE);
   Tft.drawRectangle(200, 280, 35, 35, WHITE);
+
+  setDelayUpdateRunning(false);  
 }
 
 /** Draw select component info with temporary plus and minus buttons */
 void drawSelectComponent() {
-  if (recipe->recipeId != 0) {    
+  if (recipe->recipeId != 0) {
     Tft.fillRectangle(0, 60, tftWidth, tftHeight, BLACK);
     Tft.fillRectangle(0, 0, 90, ColorPaletteHigh, RED);
     Tft.drawString("Recept", 5, 20, 2, WHITE);
     Tft.drawString("KIES COMPONENT", 40, 80, 2, WHITE);
-    
+
     drawSelectedComponentInfo();
   } else {
     Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
@@ -131,33 +155,39 @@ void drawSelectComponent() {
 
 /** Draw selected component with corresponding colors */
 void drawSelectedComponentInfo() {
-  Tft.fillRectangle(0, 115, 240, 160, BLACK);
+  Tft.fillRectangle(0, 115, 240, 205, BLACK);
   Tft.drawString(componentsTextDisplay[selectedComponent], 20, 120, 2, currentColor);
   Tft.drawString("TARGET =", 20, 160, 2, currentColor);
   Tft.drawString("HUIDIG =", 20, 210, 2, currentColor);
 
   Tft.drawNumber(recipe->components[selectedComponent].targetWeight, 130, 160, 2, currentColor);
   Tft.drawNumber(recipe->components[selectedComponent].currentWeight, 140, 210, 3, currentColor);
+
+  // Set bool in tft loop for updateing display
+  setDelayUpdateRunning(true);
+  // Set selected component in hx711
+  setCurrentComponent(selectedComponent);
 }
 
 /** Update displayed weight with selected component */
 void updateRecipeWeightInfo() {
   int x = 140, y = 210;
   Tft.fillRectangle(120, 200, 110, 70, BLACK);
+  Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, currentColor);
 
-  switch (selectedComponent) {
-    case components::WATER :
-      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, BLUE);
-      break;
-    case components::PLASTIFIER :
-      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, GRAY1);
-      break;
-    case components::SAND :
-      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, YELLOW);
-      break;
-    default:
-      Serial.println("selected comp unknown");
-  }
+//  switch (selectedComponent) {
+//    case components::WATER :
+//      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, BLUE);
+//      break;
+//    case components::PLASTIFIER :
+//      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, GRAY1);
+//      break;
+//    case components::SAND :
+//      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, YELLOW);
+//      break;
+//    default:
+//      Serial.println("selected comp unknown");
+//  }
 }
 
 
@@ -171,7 +201,38 @@ void drawTareScreen() {
 }
 
 void drawRequestObjectForTare() {
+  Tft.fillRectangle(0, 0, tftWidth, tftHeight, BLACK);
+  Tft.drawString("Plaats een gewicht", 10, 20, 2, WHITE);
+  Tft.drawString("van exact 1 kg.", 10, 60, 2, WHITE);
 
+  Tft.fillRectangle(40, 160, 160, 80, GREEN);
+  Tft.drawString("CALIBREER", 55, 190, 2, WHITE);
+
+  Tft.fillRectangle(110, 265, 90, 90, BLACK);
+  Tft.drawNumber(0, 110, 265, 5, WHITE);
+}
+
+void drawUpdateTareWeight() {
+  int weight = round(tareWeight);
+  Tft.fillRectangle(60, 265, 180, 90, BLACK);
+  Tft.drawNumber(weight, 60, 265, 5, WHITE);
+}
+
+void drawFinishCalibrating() {
+  const int dotsToDrawn = 5;
+  int x = 60;
+  Tft.fillRectangle(0, 0, tftWidth, tftHeight, BLACK);
+  Tft.drawString("Calibratie succes", 10, 20, 2, GREEN);
+
+  for (int i = 0; i < dotsToDrawn; i++) {
+    Tft.drawString(".", x, 70, 4, WHITE);
+    x += 15;
+    delay(300);
+  }
+
+  setTareWeight(-1);
+  // for some reason I when setting state here to START it wont actually draw the screen.
+  drawRecipeInfo();
 }
 
 /** Update display based on state, always called in loop when currenState != prevState */
@@ -193,15 +254,32 @@ void updateDisplay() {
     case CALIBRATE_START:
       drawRequestObjectForTare();
       break;
+    case CALIBRATE_FINISH:
+      drawFinishCalibrating();
+      break;
   }
 }
 
 void displayLoop() {
-  processTouch();
+  if (touchInterval && (millis() - delayTouch) >= touchIntervalMS) {
+    processTouch();
 
-  // this check should be moved to update recipe weight info (test!)
-  if (selectedComponent != -1 && recipe->recipeId) {
-    updateRecipeWeightInfo();
+    delayTouch = millis();
+    touchInterval = true;
+  }
+
+
+  if (delayUpdateRunning && (millis() - delayUpdateStart) >= intervalUpdate) {
+
+    delayUpdateStart = millis();
+
+    // this check should be moved to update recipe weight info (test!)
+    // but doing disables updateing the current weight displayed :/.
+    if (selectedComponent != -1 && recipe->recipeId) {
+      updateRecipeWeightInfo();
+    } else if (tareWeight != -1) {
+      drawUpdateTareWeight();
+    }
   }
 
   if (displayStatus != prevDisplayStatus) {
@@ -211,16 +289,6 @@ void displayLoop() {
 
   prevDisplayStatus = displayStatus;
 }
-
-//void drawComponents(int color, components _selectedComponent) {
-//  if (recipe->recipeId != 0) {
-//    selectedComponent = _selectedComponent;
-//    setCurrentComponent(selectedComponent);
-//    drawSelectedComponentInfo(color);
-//  } else {
-//    Tft.drawString("Kies receptuur!", 10, 260, 2, RED);
-//  }
-//}
 
 /** Process touch input if valid pressure detected */
 void processTouch() {
@@ -243,30 +311,52 @@ void readTouchInput(int x, int y) {
   {
     // Start button pressed, update UI and request user to select component
     if (x > 0 && x < 90) {
-      updateDisplayStatus(displayRecipeStates::START);
+      selectedComponent = -1;
+      setCurrentComponent(selectedComponent);
+      setBroadcastRecipe(false);
+      setDelayUpdateRunning(false);
+      setReadScale(false);
+      drawRecipeInfo();
     }
     else if (x > 90 && x < 140) {
+      setBroadcastRecipe(true);
       currentColor = BLUE;
       selectedComponent = components::WATER;
-      updateDisplayStatus(displayRecipeStates::SELECT_COMP);
-      //drawComponents(BLUE, components::WATER);
+      drawSelectedComponentInfo();
+      //updateDisplayStatus(displayRecipeStates::SELECT_COMP);
     }
     else if (x > 140 && x < 190) {
+      setBroadcastRecipe(true);
       currentColor = YELLOW;
       selectedComponent = components::SAND;
-      updateDisplayStatus(displayRecipeStates::SELECT_COMP);
-      //drawComponents(YELLOW, components::SAND);
+      drawSelectedComponentInfo();
+      //updateDisplayStatus(displayRecipeStates::SELECT_COMP);
     }
     else if (x > 190 && x < tftWidth) {
+      setBroadcastRecipe(true);
       currentColor = GRAY1;
       selectedComponent = components::PLASTIFIER;
-      updateDisplayStatus(displayRecipeStates::SELECT_COMP);
-      //drawComponents(GRAY1, components::PLASTIFIER);
+      drawSelectedComponentInfo();
+      //updateDisplayStatus(displayRecipeStates::SELECT_COMP);
     }
   }
   else if (y >= 160 && y < 240) {
     if (x > 40 && x < 200 && displayStatus == displayRecipeStates::TARE) {
-      Serial.println("OK pressed, start taring...");
+      Serial.println("OK pressed, start taring...");      
+      setReadScale(true);
+      setDelayUpdateRunning(true);
+
+      tareWeight = 0;
+      setTareWeight(tareWeight);
+      tareScaleHx711();
+      updateDisplayStatus(displayRecipeStates::CALIBRATE_START);
+    }
+    else if (x > 40 && x < 200 && displayStatus == CALIBRATE_START) {
+      Serial.println("Calibrate start pressed...");            
+      setDelayUpdateRunning(false);
+      
+      calibrateScale();
+      updateDisplayStatus(displayRecipeStates::CALIBRATE_FINISH);
     }
   }
   else if (y >= 280) {
