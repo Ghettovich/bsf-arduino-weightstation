@@ -174,20 +174,6 @@ void updateRecipeWeightInfo() {
   int x = 140, y = 210;
   Tft.fillRectangle(120, 200, 110, 70, BLACK);
   Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, currentColor);
-
-//  switch (selectedComponent) {
-//    case components::WATER :
-//      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, BLUE);
-//      break;
-//    case components::PLASTIFIER :
-//      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, GRAY1);
-//      break;
-//    case components::SAND :
-//      Tft.drawNumber(recipe->components[selectedComponent].currentWeight, x, y, 3, YELLOW);
-//      break;
-//    default:
-//      Serial.println("selected comp unknown");
-//  }
 }
 
 
