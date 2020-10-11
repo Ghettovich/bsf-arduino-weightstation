@@ -31,6 +31,7 @@ void hx711Setup() {
 
   scale.begin(HX711_dout, HX711_sck);
   scale.set_scale(110.5);
+  //scale.power_down();
 //  scale.callibrate_scale(1000, 5);
 }
 

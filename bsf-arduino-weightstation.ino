@@ -1,7 +1,10 @@
 #include <stdint.h>
+#include <EthernetENC.h>
 #include <ArduinoJson.h>
 #include "src/Recipe.h"
 #include "src/Display.h"
+#include "src/ReplyEnum.h"
+
 
 
 int state = 0, prevState = 0;
@@ -28,6 +31,8 @@ void setup() {
   
   // initialize load cell 
   hx711Setup(); 
+  delay(100);
+  
   // initialize hardware
   initTFTouchScreen();  
   updateDisplay(); 
@@ -44,7 +49,7 @@ void loop() {
   // check if load has new data
   hx711Loop();
   // check if ether has a pending packet
-  etherLoop();
+  receiveEthernetPacketLoop();
   // a point object holds x y and z coordinates.
   displayLoop();
 

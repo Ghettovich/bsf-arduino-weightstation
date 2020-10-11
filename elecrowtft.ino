@@ -309,21 +309,18 @@ void readTouchInput(int x, int y) {
       currentColor = BLUE;
       selectedComponent = components::WATER;
       drawSelectedComponentInfo();
-      //updateDisplayStatus(displayRecipeStates::SELECT_COMP);
     }
     else if (x > 140 && x < 190) {
       setBroadcastRecipe(true);
       currentColor = YELLOW;
       selectedComponent = components::SAND;
       drawSelectedComponentInfo();
-      //updateDisplayStatus(displayRecipeStates::SELECT_COMP);
     }
     else if (x > 190 && x < tftWidth) {
       setBroadcastRecipe(true);
       currentColor = GRAY1;
       selectedComponent = components::PLASTIFIER;
       drawSelectedComponentInfo();
-      //updateDisplayStatus(displayRecipeStates::SELECT_COMP);
     }
   }
   else if (y >= 160 && y < 240) {
