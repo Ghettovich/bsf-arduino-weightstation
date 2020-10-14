@@ -26,7 +26,7 @@ void setup() {
   Serial.begin(57600);  
     
   // set pins manually
-  setEthernetPinDefinitions();
+  //setEthernetPinDefinitions();
   setTFTPinDefinitions();
   
   // initialize load cell 

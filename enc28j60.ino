@@ -163,6 +163,8 @@ void deserializeJsonPayload() {
         }
       }
 
+      Serial.println("Set recipe");
+
       updateState(StateCode::RECIPE_SET);
       updateDisplayStatus(displayRecipeStates::START_WITH_RECIPE);
     }
@@ -198,7 +200,8 @@ void sendUpdatedRecipeInfo() {
     Serial.println(client.remoteIP());
     // Write to host socket
     client.println(payload);
-    client.println();
+
+    delay(1);
     client.stop();
 
   } else {
@@ -218,8 +221,10 @@ void sendFullStatePayloadPacket() {
   serializeJson(doc, payload);
 
   client.println(payload);
+  delay(1);
 }
 
 void sendEmptyReply() {
+  delay(1);
   client.stop();
 }
