@@ -1,19 +1,18 @@
-#include "HX711.h"
-
 HX711 scale;
 
 const int HX711_dout = 18;
 const int HX711_sck = 49;
 
-const int interval = 250;
-unsigned long delayStart = 0;
+const int interval = 1000;
+unsigned long delayStartPublishRecipe = 0;
 
 bool delayRunning = false;
 
-Recipe *currentRecipe;// = new Recipe;
-int currentComponent = -1;
+Recipe *currentRecipe;
+int currentComponentIndex = -1;
 
 float *currentWeight;
+float tareWeight = -1;
 
 bool readScale = false;
 
@@ -22,17 +21,16 @@ void setReadScale(bool _readScale) {
 }
 
 void hx711Setup() {
-  delayStart = millis();
+  delayStartPublishRecipe = millis();
   delayRunning = true;
 
-  Serial.println(__FILE__);
-  Serial.print("LIBRARY VERSION: ");
-  Serial.println(HX711_LIB_VERSION);
-
   scale.begin(HX711_dout, HX711_sck);
-  scale.set_scale(110.5);
-  //scale.power_down();
-//  scale.callibrate_scale(1000, 5);
+  scale.set_scale(127.15);
+  
+  scale.tare();
+  scale.callibrate_scale(1000, 5);
+  Serial.print("UNITS: ");
+  Serial.println(scale.get_units(10));
 }
 
 void setCurrentRecipe(Recipe &recipe) {
@@ -44,7 +42,7 @@ void setTareWeight(float &_currentWeight) {
 }
 
 void setCurrentComponent(int selectedComponent) {
-  currentComponent = selectedComponent;
+  currentComponentIndex = currentComponentIndex;
 }
 
 void tareScaleHx711() {
@@ -66,25 +64,14 @@ void calibrateScale() {
 
 void hx711Loop() {
 
-  if (readScale && currentWeight != NULL
-      && (millis() - delayStart) >= interval) {
-        
-    scale.power_up();
-    *currentWeight = scale.get_units(3);
-
-    delayStart = millis();
-    delayRunning = true;
-  }
-  else if (currentComponent != -1) {
-
-    if (delayRunning && (millis() - delayStart) >= interval) {
+    if (delayRunning && (millis() - delayStartPublishRecipe) >= interval) {
 
       scale.power_up();
+      Serial.print("Weight = ");
+      Serial.println(scale.get_units(3));
 
-      currentRecipe->components[currentComponent].currentWeight = (int)scale.get_units(3);
-
-      delayStart = millis();
+      delayStartPublishRecipe = millis();
       delayRunning = true;
     }
-  }
+  
 }
