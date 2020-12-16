@@ -16,21 +16,39 @@ float tareWeight = -1;
 
 bool readScale = false;
 
-void setReadScale(bool _readScale) {
-  readScale = _readScale;
-}
-
 void hx711Setup() {
-  delayStartPublishRecipe = millis();
-  delayRunning = true;
-
   scale.begin(HX711_dout, HX711_sck);
-  scale.set_scale(127.15);
-  
+
+  Serial.print("UNITS: ");
+  Serial.println(scale.get_units(10));
+
+  Serial.println("\nEmpty the scale, press a key to continue");
+  while (!Serial.available());
+  while (Serial.available()) Serial.read();
+
   scale.tare();
+  
+  Serial.print("UNITS: ");
+  Serial.println(scale.get_units(10));
+
+  Serial.println("\nPut a 1 kg in the scale, press a key to continue");
+  while (!Serial.available());
+  while (Serial.available()) Serial.read();
+
   scale.callibrate_scale(1000, 5);
   Serial.print("UNITS: ");
   Serial.println(scale.get_units(10));
+
+  Serial.println("\nScale is callibrated, press a key to continue");
+  while (!Serial.available());
+  while (Serial.available()) Serial.read();
+
+  delayStartPublishRecipe = millis();
+  delayRunning = true;
+}
+
+void setReadScale(bool _readScale) {
+  readScale = _readScale;
 }
 
 void setCurrentRecipe(Recipe &recipe) {
