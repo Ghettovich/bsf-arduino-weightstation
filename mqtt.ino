@@ -18,11 +18,14 @@ Adafruit_MQTT_Client mqtt(&client, SERVER, PORT);
 
 // Setup a feed for publishing.
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Publish recipeDataPublish = Adafruit_MQTT_Publish(&mqtt, recipeDataTopic, MQTT_QOS_1, 1);
+Adafruit_MQTT_Publish recipeDataPublish = Adafruit_MQTT_Publish(&mqtt, recipeDataTopic, MQTT_QOS_1);
 
 // Setup a feed for subscribing to changes.
 Adafruit_MQTT_Subscribe configRecipeSubcription = Adafruit_MQTT_Subscribe(&mqtt, recipeConfigSub, MQTT_QOS_1);
 
+void setPublishRecipeData(bool publishData) {
+  flagPublishRecipeData = true;
+}
 
 void setupMqttClient() {
   Serial.begin(57600);
@@ -104,9 +107,27 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
 
 
   if (recipeId && componentId) {
-
+    recipe = new Recipe(recipeId);
+    
     recipe->addComponent(componentId, targetWeight);
     updateState(StateCode::RECIPE_SET);
+    setDelayRunning(true);
+    setCurrentRecipe(*recipe);
   }
+}
 
+void publishRecipeData() {
+  const size_t capacity = JSON_OBJECT_SIZE(3);
+  char payload[capacity];
+  DynamicJsonDocument doc(capacity);
+
+  addRecipeData(doc);
+
+  serializeJson(doc, payload);
+  
+  if (! recipeDataPublish.publish(payload)) {
+    Serial.println(F("Failed"));
+  } else {
+    Serial.println(F("OK!"));
+  }
 }

@@ -18,19 +18,18 @@ struct Component {
 class Recipe {
 
 public:
-    Recipe();
+    Recipe(int recipeId);
 
     int recipeId = 0;
     int count = 0;
-    int componentsSize = 0;
     int currentComponentIndex = 0;
     const int iodeviceId = 1;
     Component componentArray[maxComponentSize];
 
-    void setRecipeId(int recipeId);
-    void setIndexComponentWithId(int componentId);
     void addComponent(int componentId, int targetWeight);
-    void updateComponentCurrentWeightWithIndex(int index, int currentWeight);
+    void updateWeight(int weight);
+    int getCurrentComponentId();
+    int getCurrentWeight();
 
 private:
     void insertComponent(int index, int componentId, int targetWeight);

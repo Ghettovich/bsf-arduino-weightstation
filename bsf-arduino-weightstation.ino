@@ -12,7 +12,7 @@
 #include <ArduinoJson.h>
 #include "src/Recipe/Recipe.h"
 
-Recipe *recipe = new Recipe;
+Recipe *recipe;// = new Recipe;
 
 int state = 0, prevState = 0;
 enum StateCode {
@@ -33,11 +33,11 @@ void setup() {
   Serial.begin(57600);  
   Serial.println("[BSF Scale 1]");
 
-  setupMqttClient();
-  delay(100);
-  
   // initialize load cell   
   hx711Setup(); 
+
+  setupMqttClient();
+  delay(100);
   
    
   state = StateCode::READY;

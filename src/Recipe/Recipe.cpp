@@ -1,25 +1,13 @@
 #include "Recipe.h"
 
-Recipe::Recipe() {
-}
-
-void Recipe::setRecipeId(int _recipeId)
-{
-    recipeId = _recipeId;
-}
-void Recipe::setIndexComponentWithId(int _componentId)
-{
-    for (int i = 0; i < count; ++i) {
-        if(componentArray->componentId == _componentId) {
-            return;
-        }
-    }
+Recipe::Recipe(int _recipeId) :
+    recipeId(_recipeId) {
 }
 void Recipe::addComponent(int _componentId, int _targetWeight)
 {
     for (int i = 0; i < count; ++i) {
         if(componentArray->componentId == _componentId) {
-
+            currentComponentIndex = i;
             return;
         }
     }
@@ -27,13 +15,22 @@ void Recipe::addComponent(int _componentId, int _targetWeight)
     insertComponent(count, _componentId, _targetWeight);
     count++;
 }
-void Recipe::updateComponentCurrentWeightWithIndex(int index, int currentWeight)
+void Recipe::updateWeight(int weight)
 {
-    componentArray[index].currentWeight = currentWeight;
+    componentArray[currentComponentIndex].currentWeight = weight;
 }
 void Recipe::insertComponent(int index, int componentId, int targetWeight)
 {
     componentArray[index].componentId = componentId;
     componentArray[index].targetWeight = targetWeight;
     componentArray[index].currentWeight = 0;
+    currentComponentIndex = count;
+}
+int Recipe::getCurrentComponentId()
+{
+    return componentArray[currentComponentIndex].componentId;
+}
+int Recipe::getCurrentWeight()
+{
+    return componentArray[currentComponentIndex].currentWeight;
 }
