@@ -3,7 +3,7 @@ HX711 scale;
 const int HX711_dout = 18;
 const int HX711_sck = 49;
 
-const int interval = 1000;
+const int interval = 750;
 unsigned long delayStartPublishRecipe = 0;
 
 bool delayRunning = false;
@@ -11,7 +11,7 @@ bool delayRunning = false;
 Recipe *currentRecipe;
 int currentComponentIndex = -1;
 
-float *currentWeight;
+float currentWeight;
 float tareWeight = -1;
 
 
@@ -19,7 +19,7 @@ void hx711Setup() {
   scale.begin(HX711_dout, HX711_sck);
 
   scale.tare();
-  scale.set_scale(110.10f);
+  scale.set_scale(109.93f);
 
 //  Serial.print("UNITS: ");
 //  Serial.println(scale.get_units(10));
@@ -55,8 +55,8 @@ void setCurrentRecipe(Recipe &recipe) {
   currentRecipe = &recipe;
 }
 
-void setTareWeight(float &_currentWeight) {
-  currentWeight = &_currentWeight;
+void setTareWeight(float _currentWeight) {
+  currentWeight = _currentWeight;
 }
 
 void setCurrentComponent(int selectedComponent) {
@@ -80,12 +80,13 @@ void hx711Loop() {
     delayRunning && (millis() - delayStartPublishRecipe) >= interval) {
 
     scale.power_up();
-    currentRecipe->updateWeight(scale.get_units(3));
+    currentWeight = scale.get_units(3);
+
+    Serial.println(currentWeight);
+    
+    currentRecipe->updateWeight((int)currentWeight);
     publishRecipeData();
-//    Serial.print("Weight = ");
-//    Serial.println(scale.get_units(3));
-
-
+    
     delayStartPublishRecipe = millis();
     delayRunning = true;
   }

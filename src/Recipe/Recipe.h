@@ -18,7 +18,7 @@ struct Component {
 class Recipe {
 
 public:
-    Recipe(int recipeId);
+    explicit Recipe(int recipeId);
 
     int recipeId = 0;
     int count = 0;

@@ -124,7 +124,15 @@ void publishRecipeData() {
   doc["did"] = iodeviceId;
   doc["rid"] = recipe->recipeId;
   doc["cid"] = recipe->getCurrentComponentId();
-  doc["weight"] = 1337;
+
+  Serial.print("Component id = ");
+  Serial.println(recipe->getCurrentComponentId());
+  
+  if(recipe->getCurrentWeight() < 0) {
+    doc["weight"] = 0;  
+  } else {
+    doc["weight"] = recipe->getCurrentWeight();
+  }
 
   serializeJson(doc, payload);
 
