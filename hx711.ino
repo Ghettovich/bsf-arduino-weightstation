@@ -67,14 +67,6 @@ void setDelayRunning(bool _delayRunning) {
   delayRunning = _delayRunning;
 }
 
-void addRecipeData(DynamicJsonDocument doc) {
-  if (!currentRecipe) {
-    doc["rid"] = currentRecipe->recipeId;
-    doc["cid"] = currentRecipe->getCurrentComponentId();
-    doc["weight"] = currentRecipe->getCurrentWeight();
-  }
-}
-
 void tareScaleHx711() {
   scale.tare();
   Serial.print("(tare) UNITS: ");

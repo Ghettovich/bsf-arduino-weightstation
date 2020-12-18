@@ -1,4 +1,4 @@
-const long pingInterval = 100000;
+const long pingInterval = 30000;
 unsigned long delayStart = 0;
 bool flagPublishRecipeData = false, delayPingStart = false;
 byte macMqtt[] = {0xFE, 0xA7, 0x3D, 0x80, 0xB4, 0xC2};
@@ -108,7 +108,7 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
 
   if (recipeId && componentId) {
     recipe = new Recipe(recipeId);
-    
+
     recipe->addComponent(componentId, targetWeight);
     updateState(StateCode::RECIPE_SET);
     setDelayRunning(true);
@@ -117,14 +117,17 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
 }
 
 void publishRecipeData() {
-  const size_t capacity = JSON_OBJECT_SIZE(3);
-  char payload[capacity];
-  DynamicJsonDocument doc(capacity);
+  //const size_t capacity = JSON_OBJECT_SIZE(4);
+  char payload[64];
+  DynamicJsonDocument doc(64);
 
-  addRecipeData(doc);
+  doc["did"] = iodeviceId;
+  doc["rid"] = recipe->recipeId;
+  doc["cid"] = recipe->getCurrentComponentId();
+  doc["weight"] = 1337;
 
   serializeJson(doc, payload);
-  
+
   if (! recipeDataPublish.publish(payload)) {
     Serial.println(F("Failed"));
   } else {

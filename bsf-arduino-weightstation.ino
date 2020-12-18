@@ -12,6 +12,7 @@
 #include <ArduinoJson.h>
 #include "src/Recipe/Recipe.h"
 
+const int iodeviceId = 1;
 Recipe *recipe;// = new Recipe;
 
 int state = 0, prevState = 0;
