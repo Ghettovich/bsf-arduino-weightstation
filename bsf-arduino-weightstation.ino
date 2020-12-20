@@ -31,7 +31,7 @@ int getCurrentState() {
 }
 
 void setup() {
-  Serial.begin(57600);  
+  Serial.begin(115200);  
   Serial.println("[BSF Scale 1]");
 
   // initialize load cell   

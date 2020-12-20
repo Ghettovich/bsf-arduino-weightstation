@@ -6,7 +6,7 @@ Recipe::Recipe(int _recipeId) :
 void Recipe::addComponent(int _componentId, int _targetWeight)
 {
     for (int i = 0; i < count; ++i) {
-        if(componentArray->componentId == _componentId) {
+        if(componentArray[i].componentId == _componentId) {
             currentComponentIndex = i;
             return;
         }
@@ -24,7 +24,7 @@ void Recipe::insertComponent(int index, int componentId, int targetWeight)
     componentArray[index].componentId = componentId;
     componentArray[index].targetWeight = targetWeight;
     componentArray[index].currentWeight = 0;
-    currentComponentIndex = count;
+    currentComponentIndex = index;
 }
 int Recipe::getCurrentComponentId()
 {
@@ -33,4 +33,12 @@ int Recipe::getCurrentComponentId()
 int Recipe::getCurrentWeight()
 {
     return componentArray[currentComponentIndex].currentWeight;
+}
+int Recipe::getRecipeId()
+{
+    return recipeId;
+}
+int Recipe::getCurrentIndex()
+{
+    return currentComponentIndex;
 }

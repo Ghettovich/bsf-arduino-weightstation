@@ -30,6 +30,8 @@ public:
     void updateWeight(int weight);
     int getCurrentComponentId();
     int getCurrentWeight();
+    int getRecipeId();
+    int getCurrentIndex();
 
 private:
     void insertComponent(int index, int componentId, int targetWeight);

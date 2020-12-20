@@ -28,8 +28,6 @@ void setPublishRecipeData(bool publishData) {
 }
 
 void setupMqttClient() {
-  Serial.begin(57600);
-
   Serial.println(F("Adafruit MQTT demo"));
 
   // Initialise the Client
@@ -56,6 +54,11 @@ void mqttLoop() {
   // this is our 'wait for incoming subscription packets and callback em' busy subloop
   // try to spend your time here:
   mqtt.processPackets(1000);
+
+  if (flagPublishRecipeData) {
+    publishRecipeData();
+  }
+
 
 
   if (delayPingStart &&
@@ -98,47 +101,84 @@ void configRecipeCallback(char *data, uint16_t len) {
 }
 
 void deserializeConfigRecipe(char *data, uint16_t len) {
-  DynamicJsonDocument doc(len);
+  DynamicJsonDocument doc(200);
   deserializeJson(doc, data);
 
   int recipeId = doc["recipeId"];
+
+  Serial.println("received id = ");
+  Serial.println(recipeId);
+
+  if (recipe == NULL) {
+    recipe = new Recipe(recipeId);
+    Serial.println("Created new recipe");
+  }
+
+  Serial.println("current id = ");
+  Serial.println(recipe->recipeId);
+  
+  // in case a new recipe is selected
+  if (recipe->recipeId != recipeId) {
+    recipe = new Recipe(recipeId);
+    Serial.println("(ID change) Created recipe with id");
+  }
+
   int componentId = doc["componentId"]; // 1
   int targetWeight = doc["targetWeight"]; // 100
+  //bool confirm = doc["confirm"];
 
+  Serial.println(componentId);
 
-  if (recipeId && componentId) {
-    recipe = new Recipe(recipeId);
+  //  if(confirm) {
+  //    setDelayRunning(false);
+  //  }
 
+  if (targetWeight && componentId) {
     recipe->addComponent(componentId, targetWeight);
-    updateState(StateCode::RECIPE_SET);
+    Serial.println("added component");
+
     setDelayRunning(true);
+    flagPublishRecipeData = true;
     setCurrentRecipe(*recipe);
+  } else {
+    Serial.println("failed added component");
   }
 }
 
 void publishRecipeData() {
   //const size_t capacity = JSON_OBJECT_SIZE(4);
-  char payload[64];
-  DynamicJsonDocument doc(64);
 
-  doc["did"] = iodeviceId;
-  doc["rid"] = recipe->recipeId;
-  doc["cid"] = recipe->getCurrentComponentId();
+  if (recipe->getCurrentWeight() > 0) {
+    char payload[64];
+    DynamicJsonDocument doc(64);
 
-  Serial.print("Component id = ");
-  Serial.println(recipe->getCurrentComponentId());
-  
-  if(recipe->getCurrentWeight() < 0) {
-    doc["weight"] = 0;  
-  } else {
-    doc["weight"] = recipe->getCurrentWeight();
-  }
+    doc["did"] = iodeviceId;
+    doc["rid"] = recipe->recipeId;
+    doc["cid"] = recipe->getCurrentComponentId();
 
-  serializeJson(doc, payload);
+    Serial.print("Component id = ");
+    Serial.println(recipe->getCurrentComponentId());
 
-  if (! recipeDataPublish.publish(payload)) {
-    Serial.println(F("Failed"));
-  } else {
-    Serial.println(F("OK!"));
+    Serial.print("Current index = ");
+    Serial.println(recipe->getCurrentIndex());
+
+    
+    Serial.print("Current recipeId = ");
+    Serial.println(recipe->recipeId);
+
+    if (recipe->getCurrentWeight() < 0) {
+      doc["weight"] = 0;
+    } else {
+      doc["weight"] = recipe->getCurrentWeight();
+    }
+
+    serializeJson(doc, payload);
+
+    if (! recipeDataPublish.publish(payload)) {
+      Serial.println(F("Failed"));
+    } else {
+      Serial.println(F("OK!"));
+    }
+
   }
 }

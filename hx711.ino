@@ -85,7 +85,6 @@ void hx711Loop() {
     Serial.println(currentWeight);
     
     currentRecipe->updateWeight((int)currentWeight);
-    publishRecipeData();
     
     delayStartPublishRecipe = millis();
     delayRunning = true;
