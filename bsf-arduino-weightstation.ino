@@ -3,7 +3,7 @@
 #include <SPI.h>
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
-
+#include <EEPROMex.h>
 #include <stdint.h>
 #include <EthernetENC.h>
 #include <EthernetClient.h>

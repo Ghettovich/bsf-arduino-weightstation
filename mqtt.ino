@@ -8,6 +8,7 @@ byte macMqtt[] = {0xFE, 0xA7, 0x3D, 0x80, 0xB4, 0xC2};
 
 const char recipeDataTopic[] = "/recipe/data";
 const char recipeConfigSub[] = "/config/recipe";
+const char tareScaleTopic[] = "/tare/scale";
 
 //Set up the ethernet client
 EthernetClient client;
@@ -22,6 +23,7 @@ Adafruit_MQTT_Publish recipeDataPublish = Adafruit_MQTT_Publish(&mqtt, recipeDat
 
 // Setup a feed for subscribing to changes.
 Adafruit_MQTT_Subscribe configRecipeSubcription = Adafruit_MQTT_Subscribe(&mqtt, recipeConfigSub, MQTT_QOS_1);
+Adafruit_MQTT_Subscribe tareScaleSubscription = Adafruit_MQTT_Subscribe(&mqtt, tareScaleTopic, MQTT_QOS_1);
 
 void setPublishRecipeData(bool publishData) {
   flagPublishRecipeData = true;
@@ -39,8 +41,10 @@ void setupMqttClient() {
   delayPingStart = true;
 
   configRecipeSubcription.setCallback(configRecipeCallback);
+  tareScaleSubscription.setCallback(tareScaleCallback);
 
   mqtt.subscribe(&configRecipeSubcription);
+  mqtt.subscribe(&tareScaleSubscription);
 }
 
 uint32_t x = 0;
@@ -58,8 +62,6 @@ void mqttLoop() {
   if (flagPublishRecipeData) {
     publishRecipeData();
   }
-
-
 
   if (delayPingStart &&
       (millis() - delayStart) >= pingInterval) {
@@ -100,46 +102,69 @@ void configRecipeCallback(char *data, uint16_t len) {
   deserializeConfigRecipe(data, len);
 }
 
+void tareScaleCallback(char *data, uint16_t len) {
+  DynamicJsonDocument doc(len);
+  deserializeJson(doc, data);
+
+  bool confirm = doc["tare"];
+  float weight = doc["weight"];
+
+  Serial.println(weight);
+
+  if(!confirm) {    
+    recipe = new Recipe(0);
+    setCurrentRecipe(*recipe); 
+    recipe->addComponent(0, 0);
+
+    flagPublishRecipeData = true;
+    setDelayRunning(true);
+    setIsTareActive(true);
+    setTareWeight(weight);
+    tareScaleHx711();    
+
+  } else {
+    flagPublishRecipeData = false;
+    setDelayRunning(false);
+    setIsTareActive(false);
+    calibrateScale();
+  }
+}
+
 void deserializeConfigRecipe(char *data, uint16_t len) {
-  DynamicJsonDocument doc(200);
+  DynamicJsonDocument doc(len);
   deserializeJson(doc, data);
 
   int recipeId = doc["recipeId"];
 
-  Serial.println("received id = ");
-  Serial.println(recipeId);
-
   if (recipe == NULL) {
     recipe = new Recipe(recipeId);
+    setCurrentRecipe(*recipe);
     Serial.println("Created new recipe");
   }
 
-  Serial.println("current id = ");
-  Serial.println(recipe->recipeId);
-  
   // in case a new recipe is selected
   if (recipe->recipeId != recipeId) {
     recipe = new Recipe(recipeId);
+    setCurrentRecipe(*recipe);
     Serial.println("(ID change) Created recipe with id");
   }
 
   int componentId = doc["componentId"]; // 1
   int targetWeight = doc["targetWeight"]; // 100
-  //bool confirm = doc["confirm"];
+  bool confirm = doc["confirm"];  
 
-  Serial.println(componentId);
-
-  //  if(confirm) {
-  //    setDelayRunning(false);
-  //  }
-
-  if (targetWeight && componentId) {
+  if (confirm) {
+    setDelayRunning(false);
+    flagPublishRecipeData = false;    
+    Serial.println("setDelayRunning = false");
+    return;
+  } 
+  else if (targetWeight && componentId) {
     recipe->addComponent(componentId, targetWeight);
     Serial.println("added component");
 
     setDelayRunning(true);
     flagPublishRecipeData = true;
-    setCurrentRecipe(*recipe);
   } else {
     Serial.println("failed added component");
   }
@@ -147,38 +172,27 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
 
 void publishRecipeData() {
   //const size_t capacity = JSON_OBJECT_SIZE(4);
+  char payload[64];
+  DynamicJsonDocument doc(64);
 
-  if (recipe->getCurrentWeight() > 0) {
-    char payload[64];
-    DynamicJsonDocument doc(64);
+  doc["did"] = iodeviceId;
+  doc["rid"] = recipe->recipeId;
+  doc["cid"] = recipe->getCurrentComponentId();
 
-    doc["did"] = iodeviceId;
-    doc["rid"] = recipe->recipeId;
-    doc["cid"] = recipe->getCurrentComponentId();
 
-    Serial.print("Component id = ");
-    Serial.println(recipe->getCurrentComponentId());
+  if (recipe->getCurrentWeight() < 0) {
+    doc["weight"] = 0;
+  } else if (recipe->getCurrentWeight() > getMaxLoadCellWeight()) {
+    doc["weight"] = getMaxLoadCellWeight();
+  } else {
+    doc["weight"] = recipe->getCurrentWeight();
+  }
 
-    Serial.print("Current index = ");
-    Serial.println(recipe->getCurrentIndex());
+  serializeJson(doc, payload);
 
-    
-    Serial.print("Current recipeId = ");
-    Serial.println(recipe->recipeId);
-
-    if (recipe->getCurrentWeight() < 0) {
-      doc["weight"] = 0;
-    } else {
-      doc["weight"] = recipe->getCurrentWeight();
-    }
-
-    serializeJson(doc, payload);
-
-    if (! recipeDataPublish.publish(payload)) {
-      Serial.println(F("Failed"));
-    } else {
-      Serial.println(F("OK!"));
-    }
-
+  if (! recipeDataPublish.publish(payload)) {
+    Serial.println(F("Failed"));
+  } else {
+    Serial.println(F("OK!"));
   }
 }

@@ -6,57 +6,35 @@ const int HX711_sck = 49;
 const int interval = 750;
 unsigned long delayStartPublishRecipe = 0;
 
-bool delayRunning = false;
+bool delayRunning = false, isTareActive = false;
 
 Recipe *currentRecipe;
 int currentComponentIndex = -1;
 
-float currentWeight;
-float tareWeight = -1;
+float currentWeight = -1.00f, tareWeight = -1.00f;
+float scaleFactorAddress = 10;
+const int maxLoad = 20000;
 
 
 void hx711Setup() {
   scale.begin(HX711_dout, HX711_sck);
 
   scale.tare();
-  scale.set_scale(109.93f);
-
-//  Serial.print("UNITS: ");
-//  Serial.println(scale.get_units(10));
-//  
-//    Serial.println("\nEmpty the scale, press a key to continue");
-//    while (!Serial.available());
-//    while (Serial.available()) Serial.read();
-//  
-//    scale.tare();
-//  
-//    Serial.print("UNITS: ");
-//    Serial.println(scale.get_units(10));
-//  
-//    Serial.println("\nPut a 1 kg in the scale, press a key to continue");
-//    while (!Serial.available());
-//    while (Serial.available()) Serial.read();
-//  
-//    scale.callibrate_scale(1000, 5);
-//    Serial.print("UNITS: ");
-//    Serial.println(scale.get_units(10));
-//  
-//    Serial.println("\nScale is callibrated, press a key to continue");
-//    Serial.println(scale.get_scale());
-//  
-//    while (!Serial.available());
-//    while (Serial.available()) Serial.read();
+  scale.set_scale(scaleFactorAddress);
 
   delayStartPublishRecipe = millis();
-  delayRunning = true;
+  delayRunning = false;
+}
+void setIsTareActive(bool active) {
+  isTareActive = active;
 }
 
 void setCurrentRecipe(Recipe &recipe) {
   currentRecipe = &recipe;
 }
 
-void setTareWeight(float _currentWeight) {
-  currentWeight = _currentWeight;
+void setTareWeight(float _tareWeight) {
+  tareWeight = _tareWeight;
 }
 
 void setCurrentComponent(int selectedComponent) {
@@ -67,27 +45,35 @@ void setDelayRunning(bool _delayRunning) {
   delayRunning = _delayRunning;
 }
 
+int getMaxLoadCellWeight() {
+  return maxLoad;
+}
+
 void tareScaleHx711() {
   scale.tare();
-  Serial.print("(tare) UNITS: ");
-  tareWeight = scale.get_units(10);
-  Serial.println(tareWeight);
+}
+
+void calibrateScale() {
+  int tareReadings = 5;
+  scale.callibrate_scale(tareWeight, tareReadings);
+  EEPROM.updateFloat(scaleFactorAddress, scale.get_scale());  
 }
 
 void hx711Loop() {
 
   if (currentRecipe != NULL &&
-    delayRunning && (millis() - delayStartPublishRecipe) >= interval) {
+      delayRunning && (millis() - delayStartPublishRecipe) >= interval) {
 
     scale.power_up();
+
+    if (isTareActive) {
+      scale.callibrate_scale(1000, 5);
+    }
+    
     currentWeight = scale.get_units(3);
 
-    Serial.println(currentWeight);
-    
     currentRecipe->updateWeight((int)currentWeight);
-    
-    delayStartPublishRecipe = millis();
-    delayRunning = true;
-  }
 
+    delayStartPublishRecipe = millis();
+  }
 }
