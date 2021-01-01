@@ -155,7 +155,7 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
 
   if (confirm) {
     setDelayRunning(false);
-    flagPublishRecipeData = false;    
+    flagPublishRecipeData = false;
     Serial.println("setDelayRunning = false");
     return;
   } 
@@ -165,8 +165,6 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
 
     setDelayRunning(true);
     flagPublishRecipeData = true;
-  } else {
-    Serial.println("failed added component");
   }
 }
 

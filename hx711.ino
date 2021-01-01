@@ -18,10 +18,8 @@ const int maxLoad = 20000;
 
 void hx711Setup() {
   scale.begin(HX711_dout, HX711_sck);
-
-  scale.tare();
   scale.set_scale(scaleFactorAddress);
-
+  
   delayStartPublishRecipe = millis();
   delayRunning = false;
 }
