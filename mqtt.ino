@@ -109,8 +109,6 @@ void tareScaleCallback(char *data, uint16_t len) {
   bool confirm = doc["tare"];
   float weight = doc["weight"];
 
-  Serial.println(weight);
-
   if(!confirm) {    
     recipe = new Recipe(0);
     setCurrentRecipe(*recipe); 
@@ -157,8 +155,6 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
   if (confirm) {
     setDelayRunning(false);
     flagPublishRecipeData = false;
-    startTimeOutTimer();
-    Serial.println("setDelayRunning = false");
   } 
   else if (targetWeight && componentId) {
     recipe->addComponent(componentId, targetWeight);
