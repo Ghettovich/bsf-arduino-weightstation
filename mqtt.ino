@@ -117,6 +117,7 @@ void tareScaleCallback(char *data, uint16_t len) {
     recipe->addComponent(0, 0);
 
     flagPublishRecipeData = true;
+    setDelayTimeOut(false);
     setDelayRunning(true);
     setIsTareActive(true);
     setTareWeight(weight);
@@ -156,8 +157,8 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
   if (confirm) {
     setDelayRunning(false);
     flagPublishRecipeData = false;
+    startTimeOutTimer();
     Serial.println("setDelayRunning = false");
-    return;
   } 
   else if (targetWeight && componentId) {
     recipe->addComponent(componentId, targetWeight);
@@ -165,6 +166,7 @@ void deserializeConfigRecipe(char *data, uint16_t len) {
 
     setDelayRunning(true);
     flagPublishRecipeData = true;
+    startTimeOutTimer();
   }
 }
 
@@ -176,7 +178,16 @@ void publishRecipeData() {
   doc["did"] = iodeviceId;
   doc["rid"] = recipe->recipeId;
   doc["cid"] = recipe->getCurrentComponentId();
+  
 
+  if(getTimeOutOccured() == true) {
+    doc["low"] = 0;
+    setTimeOutOccured(false);
+    flagPublishRecipeData = false;
+  } 
+  else {
+    doc["low"] = 1;
+  }
 
   if (recipe->getCurrentWeight() < 0) {
     doc["weight"] = 0;
